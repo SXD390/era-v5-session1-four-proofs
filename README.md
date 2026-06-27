@@ -1,82 +1,159 @@
 # ERA V5 · Session 1 — Four Proofs
 
-> A single, self-contained web app that **proves the four core claims of Session 1
-> ("From Neural Networks to the Transformer")** by training tiny neural networks
-> **live in the browser** with [TensorFlow.js](https://www.tensorflow.org/js).
-> No backend, no build step — one `index.html`.
+An interactive web app that proves the four core claims of Session 1 ("From Neural Networks to the
+Transformer"). Each proof is a tiny neural net you scrub through frame by frame: instant by default
+(precomputed), or trained live in your browser with [TensorFlow.js](https://www.tensorflow.org/js)
+at the flip of a toggle.
 
 Built for the Axiom **Learning OS** · ERA V5 · Session 1 Assignment QnA (500 pts).
+
+![The four proofs at a glance](assets/overview.png)
+
+*Rendered from the app's own precomputed data: the linear models stay a straight line near 50%, ReLU
+wraps the ring at 100%, the embeddings separate into three clusters, and the generalization gap closes
+as the dataset grows.*
 
 ---
 
 ## The four proofs
 
-| # | Claim | What the app shows |
-|---|-------|--------------------|
-| **S1-1** | *Activations exist for a reason.* | The same 300-point concentric-ring dataset is fed to a **linear + sigmoid** model and a **one-hidden-layer ReLU** model. The linear decision boundary stays a straight line stuck near ~55%; the ReLU model wraps the ring at ~99%. Only the activation changed. |
-| **S1-2** | *Depth without nonlinearity is a lie.* | **1 linear layer** vs **5 stacked linear layers (no activation)** vs **5 layers + ReLU**. The first two produce the *identical* straight-line boundary and accuracy. The app then **multiplies the five trained weight matrices** and prints the single collapsed `2×1` map — proof that 5 linear layers ≡ 1 linear layer. ReLU breaks the tie. |
-| **S1-3** | *Embeddings learn similarity from nothing but next-token.* | A tiny `embedding → softmax` model is trained **only** to predict the next token in a toy grammar (`animal → verb → fruit`). The 2-D embedding table visibly separates into three category clusters (animals / fruits / verbs). Similarity was never supplied — only co-occurrence. |
-| **S1-4** | *Memorization vs generalization — data closes the gap.* | The **same over-parameterized 64×64 net** is trained at dataset sizes **20 / 200 / 2000**. At n=20 it memorizes (train ≈ 100%, test poor); at n=2000 the train/test gap nearly vanishes. A bar chart plots the generalization gap shrinking with data. |
+| # | Claim | Result in the app |
+|---|-------|-------------------|
+| **S1-1** | Activations exist for a reason. | Linear + sigmoid stalls at ~50% (a straight line); one ReLU or Tanh hidden layer reaches ~100% (a closed loop). |
+| **S1-2** | Depth without nonlinearity is a lie. | 1 linear and 5 linear layers give the same line and accuracy; the five weight matrices multiply to a single 2×1 map. 5 + ReLU reaches 100%. |
+| **S1-3** | Embeddings learn similarity from next-token alone. | A 2-D embedding table, trained only to predict the next token, separates 9 words into 3 category clusters (9/9 same-category nearest neighbors). |
+| **S1-4** | Memorization vs generalization. | The same 64×64 net memorizes 20 points (train 100%, test 71%); at 2000 points the train/test gap drops to ~0. |
 
 ---
 
-## Why this design
+## How it works
 
-The assignment asks for "a beautiful web app which proves these 4 points." Rather than
-ship static screenshots, every claim is settled by a model that **actually trains in
-front of the viewer** — the most convincing possible proof, and faithful to the spirit of
-Session 1 (a forward pass, a loss, a backward pass, repeated).
+Two modes share one renderer. A glass toggle in the header switches between them.
 
-All four experiments were **validated twice before shipping**:
-1. Reproduced numerically in Python (NumPy / scikit-learn).
-2. Re-run through the **actual TensorFlow.js model code in Node** to confirm the in-browser
-   API calls are correct and produce the claimed numbers. (This caught a real bug: TF.js
-   `sparseCategoricalCrossentropy` requires float32 labels — fixed before release.)
+```mermaid
+flowchart LR
+    U["Controls<br/>toggle · timeline · play"]
+    DJS["data.js<br/>quantized training frames"]
+    TF["TensorFlow.js<br/>lazy-loaded, ~1 MB"]
+    R["Canvas renderer<br/>decision surface + points + caption"]
+    U --> R
+    DJS -->|"Precomputed (default): index by frame"| R
+    TF -->|"Live: train, then predict on a grid"| R
+```
+
+- **Precomputed (default).** Training trajectories are computed ahead of time and stored in `data.js`
+  as quantized decision-boundary frames, embedding snapshots, and accuracies. The timeline scrubber
+  indexes frames, so it stays smooth on any laptop and needs no GPU. Fully static and offline.
+- **Live · TensorFlow.js.** The toggle trains each proof in the browser. TF.js loads only when you
+  switch, then the same renderer draws the live result.
+
+Both paths feed the same drawing code:
+
+```mermaid
+flowchart LR
+    T["timeline index i"] --> M{"mode?"}
+    M -->|precomputed| D["decode frame i from data.js"]
+    M -->|live| P["model.predict on a 40×40 grid"]
+    D --> C["draw decision surface, points, caption"]
+    P --> C
+```
+
+---
+
+## S1-1 · Activations
+
+![Linear vs one ReLU layer](assets/s1_activations.png)
+
+Same 300 ring points, same training. The linear model can only rotate a straight line, so it sits
+near chance. One nonlinear layer bends the surface into a loop that fences off the inner ring.
+
+## S1-3 · Embeddings from next-token
+
+Every sentence in the toy grammar follows one rule, so the only signal is which word tends to follow
+which. Same-category words share that pattern.
+
+```mermaid
+flowchart LR
+    A["animal<br/>cat · dog · cow"] --> V["verb<br/>eat · chase · see"] --> F["fruit<br/>apple · mango · banana"]
+```
+
+Training pairs come from that chain: `(animal → verb)` and `(verb → fruit)`. No coordinates, labels,
+or similarity are given, yet the embeddings settle into three clusters.
+
+![Embeddings before and after training](assets/s3_embeddings.png)
+
+## S1-4 · Data closes the gap
+
+The same over-parameterized net, three dataset sizes. The gap between train and test accuracy shrinks
+as the dataset grows.
+
+![Generalization gap vs dataset size](assets/s4_gap.png)
+
+---
+
+## What's under the hood
+
+All experiments are tiny by design, so live training finishes in seconds.
+
+| Proof | Dataset | Model(s) | Optimizer | Epochs | Timeline frames |
+|-------|---------|----------|-----------|--------|-----------------|
+| S1-1 | 300 ring points (noise 0.055) | `2→1` sigmoid · `2→16→1` ReLU · `2→16→1` Tanh | Adam | 70 | 11 |
+| S1-2 | same ring points | `2→1` · `2→8→8→8→8→1` linear · `2→16→16→16→16→1` ReLU | Adam | 80 | 11 |
+| S1-3 | toy grammar, 2000 sentences | `embedding(9→2) → softmax(9)` | Adam | 140 | 16 |
+| S1-4 | noisy XOR-sign, 10% label noise | `2→64→64→1` ReLU, sizes 20 / 200 / 2000 | Adam | 400 / 200 / 90 | 11 |
+
+Decision surfaces are stored at 40×40 resolution, quantized to one byte per cell, base64-encoded in
+`data.js` (≈240 KB total).
 
 ### Validated results
 
-```
-S1-1   linear ~52–56%   |  ReLU ~99–100%
-S1-2   1-linear ≈ 5-linear (both a straight line)  |  5+ReLU ~100%
-       W1·W2·W3·W4·W5  →  single 2×1 matrix
-S1-3   next-token loss → ln(3) ≈ 1.10 (theoretical floor)  |  9/9 same-category neighbors
-S1-4   gap: ~0.23 (n=20) → ~0.07 (n=200) → ~0.00 (n=2000)
-```
+Every claim was reproduced three ways: a NumPy reference (which also generates `data.js`), the live
+TensorFlow.js code run in Node, and rendered previews of the visuals.
 
-> Note on S1-3: the loss settles near **1.10**, not 0 — that is the information-theoretic
-> minimum because the next token is genuinely 1-of-3. The **clustering** is the proof, not loss→0.
+| Proof | Measurement | Value |
+|-------|-------------|-------|
+| S1-1 | linear accuracy | ~50% (a straight line) |
+| S1-1 | ReLU / Tanh accuracy | ~100% |
+| S1-2 | 1-linear vs 5-linear | identical line, ~50% |
+| S1-2 | collapsed weight map | `W_eff = [0.0156, 0.3823]ᵀ`, shape 2×1 |
+| S1-2 | 5 + ReLU accuracy | ~100% |
+| S1-3 | next-token loss | → ln 3 ≈ 1.10 (the floor) |
+| S1-3 | same-category neighbors | 9 / 9 |
+| S1-4 | train / test gap | 0.29 (n=20) → 0.11 (n=200) → 0.003 (n=2000) |
+
+The S1-3 loss settles near 1.10 rather than 0 because the next word is one of three. The clustering is
+the proof, not the loss.
 
 ---
 
-## Tech stack
+## Design
 
-- **TensorFlow.js 4.22** (via CDN) — in-browser model definition + training.
-- **Vanilla JS + HTML5 Canvas** — custom decision-surface heatmaps, scatter plots, and
-  the generalization-gap bar chart (no charting library).
-- **Fonts:** Fraunces (display serif) + Inter (body) + JetBrains Mono (code), Google Fonts.
-- **Theme:** Axiom-inspired warm cream / ink palette to match the Learning OS brand.
-- Seeded PRNG (mulberry32) so datasets are reproducible across reloads.
+The visual direction came from the **UI/UX Pro Max** plugin, tuned to match the Axiom LMS.
 
-No frameworks, no bundler, no server. The entire app is one `index.html`.
+- **Palette:** a WCAG-checked analytics scheme, blue data (`#1E40AF` / `#3B82F6`) with amber highlights
+  (`#D97706`) on a cool `#F4F7FB`, plus the LMS cyan as accent.
+- **Class markers** use both hue and shape (navy circle vs rust diamond) so they read without color.
+- **Type:** IBM Plex Sans for UI, JetBrains Mono for numbers and code, with tabular figures.
+- **Interaction** follows the instructor's own Session-1 widgets: a thesis, a control bar (segmented
+  toggles, play, a scrubbable timeline), a live canvas, and a caption that updates as you scrub.
+- Respects `prefers-reduced-motion`, keeps visible focus rings, and uses 44 px touch targets.
 
 ---
 
 ## Run locally
 
-Just open `index.html` in any modern browser, **or** serve the folder:
-
 ```bash
 cd webapp
-python3 -m http.server 8000
-# visit http://localhost:8000
+python3 -m http.server 8000   # then open http://localhost:8000
 ```
 
-Click **"Run all four experiments"**, or train each proof individually. Reload to reset.
+Opening `index.html` directly works too; live mode needs internet for the TF.js CDN.
 
 ## Deploy
 
-See [`DEPLOY.md`](./DEPLOY.md). Fastest path: drag the `webapp` folder onto
-**https://app.netlify.com/drop**, then sign in to make the URL permanent.
+See [`DEPLOY.md`](./DEPLOY.md). Deploy the whole folder (it needs `index.html` and `data.js`). Fastest
+path: drag the `webapp` folder onto [Netlify Drop](https://app.netlify.com/drop), then sign in to keep
+the URL.
 
 ---
 
@@ -84,17 +161,18 @@ See [`DEPLOY.md`](./DEPLOY.md). Fastest path: drag the `webapp` folder onto
 
 ```
 webapp/
-├── index.html     # the entire app (markup + styles + TF.js logic)
-├── README.md      # this file
-└── DEPLOY.md      # Netlify deployment instructions
+├── index.html         # the app: markup, design system, interaction + render logic
+├── data.js            # precomputed training trajectories (~240 KB)
+├── generate_data.py   # NumPy generator that produces data.js (reproducibility)
+├── assets/            # rendered figures used in this README
+├── README.md          # this file
+├── DEPLOY.md          # Netlify deployment steps
+└── push_to_github.sh  # one-shot helper to publish this folder to GitHub
 ```
 
-## Notes
-
-- First load fetches TensorFlow.js (~1 MB) and Google Fonts; afterwards it runs offline.
-- Numbers vary slightly run-to-run (random initialization) — expected, and reinforces that
-  training is genuinely happening live rather than being replayed.
+Only `index.html` + `data.js` are needed to run or deploy. Regenerate the data with
+`python3 generate_data.py`.
 
 ---
 
-*Course: ERA V5 · Session 1 — From Neural Networks to the Transformer · Axiom Learning OS.*
+*Course: ERA V5 · Session 1 · From Neural Networks to the Transformer · Axiom Learning OS.*

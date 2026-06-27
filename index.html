@@ -3,746 +3,825 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Session 1 — Four Proofs · Axiom / ERA V5</title>
-<meta name="description" content="Four live, in-browser neural-network experiments that prove the core ideas of Session 1: why activations exist, why depth needs nonlinearity, how embeddings learn similarity from next-token alone, and how data closes the generalization gap." />
+<title>Session 1 · Four Proofs · From Neural Networks to the Transformer</title>
+<meta name="description" content="Four interactive, scrubbable neural-network experiments that prove the core ideas of ERA V5 Session 1: why activations exist, why depth needs nonlinearity, how embeddings learn similarity from next-token alone, and how data closes the generalization gap." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
   :root{
-    --paper:#F6F1E7; --paper-2:#FBF8F1; --card:#FFFDF8;
-    --ink:#1C1814; --ink-soft:#4A4239; --ink-faint:#8A7E6E;
-    --line:#E4DBCB; --line-strong:#D6CAB4;
-    --accent:#B45309; --accent-2:#D97706; --accent-soft:#FBEAD2;
-    --c0:#0F766E; --c0-soft:#CFE8E4;   /* class 0 / inner ring / teal  */
-    --c1:#B91C1C; --c1-soft:#F4D6D2;   /* class 1 / outer ring / rust  */
-    --good:#15803D; --bad:#B91C1C;
-    --shadow:0 1px 2px rgba(28,24,20,.04),0 8px 30px rgba(28,24,20,.06);
+    /* scientific analytics palette (WCAG-checked) + LMS cyan cohesion */
+    --bg:#F4F7FB; --bg-2:#EEF3F9; --surface:#FFFFFF; --surface-alt:#FAFCFF;
+    --ink:#102338; --ink-2:#33485F; --ink-3:#64748B; --ink-faint:#8A9BB0;
+    --line:#E3EAF2; --line-2:#D2DEEC;
+    --primary:#1E40AF; --primary-2:#3B82F6; --cyan:#0A7EA4; --cyan-soft:#E6F6FB;
+    --amber:#B45309; --amber-2:#D97706; --amber-soft:#FBE6CF;
+    --teal:#0F766E; --rose:#9F1239; --violet:#5B21B6;
+    --good:#15803D; --good-soft:#DCFCE7; --bad:#B91C1C;
+    /* region tints for decision surfaces */
+    --reg0:#E2ECF8; --reg1:#FAE8CE;
+    --shadow:0 1px 2px rgba(16,35,56,.04), 0 10px 30px rgba(16,35,56,.07);
+    --shadow-sm:0 1px 2px rgba(16,35,56,.04), 0 4px 14px rgba(16,35,56,.05);
     --radius:18px;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{
-    margin:0;background:
-      radial-gradient(1200px 600px at 80% -5%, #FCEBD3 0%, rgba(252,235,211,0) 60%),
-      radial-gradient(900px 500px at 0% 5%, #EDEEE3 0%, rgba(237,238,227,0) 55%),
-      var(--paper);
-    color:var(--ink);
-    font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    line-height:1.6;-webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
-  h1,h2,h3,.serif{font-family:"Fraunces",Georgia,"Times New Roman",serif}
-  a{color:var(--accent)}
-  .mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+  body{margin:0;font-family:var(--sans);color:var(--ink);line-height:1.6;
+    background:
+      radial-gradient(1100px 520px at 88% -8%, #E2F1F8 0%, rgba(226,241,248,0) 60%),
+      radial-gradient(900px 480px at -5% 0%, #E7ECFA 0%, rgba(231,236,250,0) 55%),
+      var(--bg);
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+  .mono{font-family:var(--mono)}
+  a{color:var(--primary)}
+  h1,h2,h3{letter-spacing:-.02em;line-height:1.1;margin:0}
+  .tnum{font-variant-numeric:tabular-nums;font-family:var(--mono)}
 
-  /* ---------- header ---------- */
-  header.top{padding:54px 0 10px}
-  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:13px;letter-spacing:.14em;
-    text-transform:uppercase;color:var(--accent);font-weight:600}
-  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--accent-2);
-    box-shadow:0 0 0 4px var(--accent-soft)}
-  h1{font-size:clamp(34px,5.4vw,60px);line-height:1.04;margin:18px 0 6px;font-weight:600;letter-spacing:-.015em}
-  h1 .grad{background:linear-gradient(95deg,var(--accent),#92400E);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .lede{font-size:clamp(17px,2.1vw,21px);color:var(--ink-soft);max-width:760px;margin:14px 0 0;font-weight:400}
-  .meta{display:flex;flex-wrap:wrap;gap:10px;margin:26px 0 6px}
-  .chip{font-size:13px;padding:7px 13px;border:1px solid var(--line-strong);border-radius:999px;
-    background:var(--card);color:var(--ink-soft);display:inline-flex;gap:7px;align-items:center}
+  /* ---------- sticky top bar ---------- */
+  .topbar{position:sticky;top:0;z-index:50;backdrop-filter:saturate(1.4) blur(10px);
+    background:rgba(244,247,251,.82);border-bottom:1px solid var(--line)}
+  .topbar .inner{max-width:1120px;margin:0 auto;padding:11px 22px;display:flex;align-items:center;gap:16px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14.5px;white-space:nowrap}
+  .brand .mark{width:24px;height:24px;border-radius:7px;background:
+      conic-gradient(from 200deg,var(--primary),var(--cyan),var(--amber-2),var(--primary));
+    box-shadow:0 0 0 3px rgba(30,64,175,.10)}
+  .brand .sub{color:var(--ink-3);font-weight:500}
+  .spacer{flex:1}
+  /* glass pill toggle */
+  .glass{display:inline-flex;padding:4px;gap:3px;border-radius:999px;position:relative;
+    background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.7);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 6px 18px rgba(16,35,56,.10);
+    backdrop-filter:blur(8px)}
+  .glass button{appearance:none;border:0;background:transparent;cursor:pointer;font:inherit;
+    position:relative;z-index:1;
+    font-size:12.5px;font-weight:600;color:var(--ink-3);padding:7px 14px;border-radius:999px;
+    display:inline-flex;align-items:center;gap:7px;transition:color .2s;white-space:nowrap}
+  .glass button .d{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.55}
+  .glass .knob{position:absolute;top:4px;bottom:4px;z-index:0;border-radius:999px;
+    background:linear-gradient(180deg,#fff,#eef3fb);box-shadow:0 2px 8px rgba(16,35,56,.16),0 0 0 1px var(--line-2);
+    transition:transform .28s cubic-bezier(.4,1.2,.4,1),width .28s}
+  .glass button.on{color:var(--primary)}
+  .glass button.on .d{opacity:1;background:var(--good)}
+  .glass[data-mode="live"] button.liveb.on{color:var(--amber)}
+  .glass[data-mode="live"] button.liveb.on .d{background:var(--amber-2)}
+  @media(max-width:680px){.brand .sub{display:none}}
+
+  /* ---------- hero ---------- */
+  header.hero{padding:54px 0 8px}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:12px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--cyan);font-weight:700;
+    background:var(--cyan-soft);border:1px solid #CDEBF4;padding:6px 12px;border-radius:999px}
+  h1{font-size:clamp(34px,5.2vw,58px);font-weight:700;margin:20px 0 0;max-width:16ch}
+  h1 .g{background:linear-gradient(100deg,var(--primary),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{font-size:clamp(16px,2vw,20px);color:var(--ink-2);max-width:70ch;margin:16px 0 0}
+  .meta{display:flex;flex-wrap:wrap;gap:9px;margin:24px 0 0}
+  .chip{font-size:12.5px;padding:7px 13px;border:1px solid var(--line-2);border-radius:999px;
+    background:var(--surface);color:var(--ink-2);display:inline-flex;gap:7px;align-items:center}
   .chip b{color:var(--ink);font-weight:600}
-  .runall{margin-top:8px}
-  .btn{appearance:none;border:1px solid var(--accent);background:var(--accent);color:#fff;
-    font:inherit;font-weight:600;font-size:14px;padding:11px 20px;border-radius:11px;cursor:pointer;
-    transition:transform .08s ease,filter .15s ease,background .15s;display:inline-flex;align-items:center;gap:9px}
-  .btn:hover{filter:brightness(1.05)}
-  .btn:active{transform:translateY(1px)}
-  .btn[disabled]{opacity:.5;cursor:not-allowed;filter:none}
-  .btn.ghost{background:var(--card);color:var(--ink);border-color:var(--line-strong)}
-  .btn.ghost:hover{background:var(--paper-2)}
-  .btn.small{padding:8px 14px;font-size:13px;border-radius:9px}
+  .hero-actions{margin-top:22px;display:flex;gap:11px;flex-wrap:wrap;align-items:center}
 
-  /* ---------- contents ---------- */
-  nav.toc{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:34px 0 8px}
-  nav.toc a{display:block;text-decoration:none;background:var(--card);border:1px solid var(--line);
-    border-radius:14px;padding:14px 15px;color:var(--ink);box-shadow:var(--shadow);transition:.15s}
-  nav.toc a:hover{border-color:var(--line-strong);transform:translateY(-2px)}
-  nav.toc .k{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:600}
-  nav.toc .t{font-family:"Fraunces",serif;font-size:15px;margin-top:5px;line-height:1.25}
+  /* buttons */
+  .btn{appearance:none;border:1px solid var(--primary);background:var(--primary);color:#fff;
+    font:inherit;font-weight:600;font-size:14px;padding:11px 19px;border-radius:11px;cursor:pointer;
+    display:inline-flex;align-items:center;gap:9px;transition:filter .15s,transform .08s,box-shadow .15s;
+    box-shadow:0 6px 16px rgba(30,64,175,.18)}
+  .btn:hover{filter:brightness(1.07)} .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.5;cursor:not-allowed;filter:none;box-shadow:none}
+  .btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--line-2);box-shadow:var(--shadow-sm)}
+  .btn.ghost:hover{background:var(--surface-alt)}
+  .btn.sm{padding:8px 13px;font-size:13px;border-radius:9px}
+  .btn svg{width:15px;height:15px}
+  :focus-visible{outline:3px solid rgba(59,130,246,.45);outline-offset:2px;border-radius:6px}
 
-  /* ---------- section / card ---------- */
-  section.proof{margin:40px 0}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    box-shadow:var(--shadow);overflow:hidden}
-  .card .hd{padding:26px 28px 4px}
-  .tagrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .stag{font-family:"JetBrains Mono",monospace;font-size:12.5px;font-weight:500;color:#fff;
-    background:linear-gradient(95deg,var(--accent),#92400E);padding:5px 10px;border-radius:7px;letter-spacing:.02em}
-  h2{font-size:clamp(24px,3.2vw,33px);margin:14px 0 0;font-weight:600;letter-spacing:-.01em;line-height:1.12}
-  .claim{margin:14px 0 0;padding:14px 16px;background:var(--paper-2);border:1px solid var(--line);
-    border-left:3px solid var(--accent-2);border-radius:10px;color:var(--ink-soft);font-size:15.5px}
-  .claim b{color:var(--ink)}
-  .bd{padding:18px 28px 28px}
-  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:6px 0 20px}
-  .status{font-size:13.5px;color:var(--ink-faint);margin-left:2px}
-  .status .live{color:var(--accent);font-weight:600}
+  /* ---------- toc ---------- */
+  nav.toc{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:32px 0 6px}
+  nav.toc a{text-decoration:none;background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:13px 15px;color:var(--ink);box-shadow:var(--shadow-sm);transition:.15s;display:block}
+  nav.toc a:hover{border-color:var(--line-2);transform:translateY(-2px)}
+  nav.toc .k{font-family:var(--mono);font-size:11.5px;color:var(--cyan);font-weight:600}
+  nav.toc .t{font-size:14px;margin-top:5px;font-weight:600;line-height:1.25;letter-spacing:-.01em}
 
-  .plots{display:grid;gap:18px}
+  /* ---------- section card ---------- */
+  section.proof{margin:34px 0;scroll-margin-top:70px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .hd{padding:24px 28px 0}
+  .stag{font-family:var(--mono);font-size:12px;font-weight:600;color:#fff;
+    background:linear-gradient(100deg,var(--primary),var(--cyan));padding:5px 10px;border-radius:7px}
+  h2{font-size:clamp(22px,3vw,31px);font-weight:700;margin:14px 0 0}
+  .thesis{margin:12px 0 0;color:var(--ink-2);font-size:15.5px;max-width:84ch}
+  .thesis b{color:var(--ink)}
+  .bd{padding:18px 28px 26px}
+
+  /* control bar */
+  .ctl{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:center;
+    background:var(--surface-alt);border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin:4px 0 18px}
+  .seg{display:inline-flex;background:#fff;border:1px solid var(--line-2);border-radius:10px;padding:3px;gap:2px}
+  .seg button{appearance:none;border:0;background:transparent;font:inherit;font-size:12.5px;font-weight:600;
+    color:var(--ink-3);padding:7px 12px;border-radius:8px;cursor:pointer;transition:.15s;min-height:34px}
+  .seg button.on{background:var(--primary);color:#fff;box-shadow:0 2px 6px rgba(30,64,175,.25)}
+  .seg.amber button.on{background:var(--amber)}
+  .ctl .lbl{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin-right:2px}
+  .tl{display:flex;align-items:center;gap:10px;flex:1;min-width:240px}
+  .tl input[type=range]{flex:1;accent-color:var(--primary);height:6px;cursor:pointer;min-width:120px}
+  .tl .ep{font-family:var(--mono);font-size:12px;color:var(--ink-2);min-width:104px;text-align:right}
+  .iconbtn{appearance:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line-2);
+    background:#fff;color:var(--primary);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm)}
+  .iconbtn:hover{background:var(--surface-alt)} .iconbtn svg{width:16px;height:16px}
+
+  /* plots */
+  .plots{display:grid;gap:16px}
   .plots.two{grid-template-columns:1fr 1fr}
   .plots.three{grid-template-columns:repeat(3,1fr)}
-  .panel{background:var(--paper-2);border:1px solid var(--line);border-radius:14px;padding:14px}
-  .panel h4{margin:2px 0 10px;font-family:"Inter",sans-serif;font-size:13.5px;font-weight:600;
-    color:var(--ink-soft);display:flex;justify-content:space-between;align-items:center;gap:8px}
-  .panel h4 .pill{font-family:"JetBrains Mono",monospace;font-size:11.5px;padding:3px 8px;border-radius:6px;
-    background:var(--card);border:1px solid var(--line-strong);color:var(--ink-faint);font-weight:500}
-  canvas{display:block;width:100%;height:auto;border-radius:9px;background:#fff;border:1px solid var(--line)}
-  .readout{display:flex;gap:18px;margin-top:11px;flex-wrap:wrap}
-  .metric{flex:1;min-width:88px}
-  .metric .lab{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint)}
-  .metric .val{font-family:"Fraunces",serif;font-size:26px;font-weight:600;line-height:1.1;margin-top:2px}
-  .metric .val.good{color:var(--good)} .metric .val.bad{color:var(--bad)}
-  .verdict{margin-top:20px;padding:15px 17px;border-radius:12px;background:linear-gradient(100deg,#FFF8EC,#FDF1DF);
-    border:1px solid var(--line-strong);font-size:15px;color:var(--ink-soft);display:flex;gap:11px;align-items:flex-start}
-  .verdict b{color:var(--ink)}
-  .verdict .vk{font-family:"Fraunces",serif;font-weight:700;color:var(--accent);flex:0 0 auto}
-  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);margin:4px 0 14px}
+  .panel{background:var(--surface-alt);border:1px solid var(--line);border-radius:14px;padding:13px}
+  .panel h4{margin:0 0 9px;font-size:13px;font-weight:600;color:var(--ink-2);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .panel h4 .pill{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:6px;background:#fff;border:1px solid var(--line-2);color:var(--ink-3);font-weight:500}
+  canvas{display:block;width:100%;height:auto;border-radius:10px;background:#fff;border:1px solid var(--line)}
+  .readout{display:flex;gap:16px;margin-top:11px;flex-wrap:wrap}
+  .metric{flex:1;min-width:74px}
+  .metric .l{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
+  .metric .v{font-family:var(--mono);font-size:23px;font-weight:600;margin-top:3px;color:var(--ink)}
+  .metric .v.good{color:var(--good)} .metric .v.bad{color:var(--bad)}
+  .legend{display:flex;gap:15px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2);margin:2px 0 13px}
   .legend span{display:inline-flex;align-items:center;gap:7px}
-  .sw{width:13px;height:13px;border-radius:4px;display:inline-block}
-  .note{font-size:13px;color:var(--ink-faint);margin-top:12px}
-  .matbox{margin-top:16px;background:var(--ink);color:#F3ECDD;border-radius:12px;padding:16px 18px;
-    font-family:"JetBrains Mono",monospace;font-size:12.5px;line-height:1.7;overflow-x:auto}
-  .matbox .hl{color:var(--accent-2)} .matbox .g{color:#7CCF8E} .matbox .dim{color:#9A8E7C}
+  .sw{width:12px;height:12px;border-radius:4px;display:inline-block}
+  .dot{width:11px;height:11px;border-radius:50%;display:inline-block}
+  .dia{width:11px;height:11px;display:inline-block;transform:rotate(45deg);border-radius:2px}
 
-  footer{margin:60px 0 70px;color:var(--ink-faint);font-size:14px;text-align:center}
-  footer .rule{height:1px;background:var(--line);margin:0 0 26px}
+  .caption{margin-top:16px;padding:13px 15px;border-radius:11px;background:#fff;border:1px solid var(--line);
+    border-left:3px solid var(--cyan);font-size:14.5px;color:var(--ink-2);min-height:46px}
+  .caption b{color:var(--ink)}
+  .verdict{margin-top:14px;padding:14px 16px;border-radius:12px;
+    background:linear-gradient(100deg,#F1F6FE,#FBF3E8);border:1px solid var(--line-2);font-size:14.5px;color:var(--ink-2);display:flex;gap:11px}
+  .verdict b{color:var(--ink)} .verdict .vk{font-weight:700;color:var(--amber);flex:0 0 auto}
+  .matbox{margin-top:15px;background:#0E1B2E;color:#DCE7F2;border-radius:12px;padding:15px 17px;
+    font-family:var(--mono);font-size:12px;line-height:1.75;overflow-x:auto}
+  .matbox .hl{color:#7FD4EC}.matbox .g{color:#86E0A2}.matbox .dim{color:#6F8198}
+  .note{font-size:12.5px;color:var(--ink-faint);margin-top:10px}
 
-  @media (max-width:820px){
+  footer{margin:54px 0 70px;color:var(--ink-3);font-size:13.5px;text-align:center}
+  footer .rule{height:1px;background:var(--line);margin:0 0 24px}
+
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  @media(max-width:860px){
     nav.toc{grid-template-columns:repeat(2,1fr)}
     .plots.two,.plots.three{grid-template-columns:1fr}
   }
 </style>
 </head>
 <body>
+
+<div class="topbar">
+  <div class="inner">
+    <div class="brand"><span class="mark"></span>Session 1 · Four Proofs<span class="sub">ERA V5 · Axiom</span></div>
+    <div class="spacer"></div>
+    <div class="glass" id="modeToggle" data-mode="pre" role="tablist" aria-label="Compute mode">
+      <span class="knob" id="knob"></span>
+      <button class="preb on" data-mode="pre" role="tab" aria-selected="true"><span class="d"></span>Precomputed</button>
+      <button class="liveb" data-mode="live" role="tab" aria-selected="false"><span class="d"></span>Live · TF.js</button>
+    </div>
+  </div>
+</div>
+
 <div class="wrap">
-
-  <header class="top">
-    <span class="eyebrow"><span class="dot"></span>Axiom · ERA V5 · Session 1</span>
-    <h1>Four proofs you can <span class="grad">watch learn</span>.</h1>
-    <p class="lede">From Neural Networks to the Transformer. Every claim below is settled by a tiny network that
-      trains <b>live in your browser</b> — no precomputed pictures. Press a button and watch the boundary form,
-      the embeddings separate, and the gap close.</p>
-
+  <header class="hero">
+    <span class="eyebrow">From Neural Networks to the Transformer</span>
+    <h1>Four ideas, <span class="g">proven by a network you can scrub through.</span></h1>
+    <p class="lede">Each Session 1 claim gets a tiny neural net. Drag the timeline to watch it learn frame by frame.
+      It runs instantly by default, or flip the switch up top to <b>train it live</b> in your browser.</p>
     <div class="meta">
       <span class="chip">📘 <b>Session 1</b> · Assignment QnA</span>
       <span class="chip">🎯 <b>500</b> points</span>
-      <span class="chip">🧠 Trains on-device with <b>TensorFlow.js</b></span>
-      <span class="chip">⏱️ <b>~5–15s</b> per experiment</span>
+      <span class="chip">🟢 <b>Precomputed</b> = instant, runs on any laptop</span>
+      <span class="chip">🟠 <b>Live</b> = real TensorFlow.js training</span>
     </div>
-    <div class="runall">
-      <button class="btn" id="runAll">▶ Run all four experiments</button>
+    <div class="hero-actions">
+      <button class="btn" id="runAll"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>Play all four</button>
+      <span class="note" id="modeNote">Every proof has a draggable training timeline and a ▶ play button.</span>
     </div>
 
     <nav class="toc">
       <a href="#s1"><div class="k">S1-1</div><div class="t">Activations exist for a reason</div></a>
       <a href="#s2"><div class="k">S1-2</div><div class="t">Depth without nonlinearity is a lie</div></a>
-      <a href="#s3"><div class="k">S1-3</div><div class="t">Embeddings learn similarity from next-token</div></a>
-      <a href="#s4"><div class="k">S1-4</div><div class="t">Memorization vs generalization</div></a>
+      <a href="#s3"><div class="k">S1-3</div><div class="t">Embeddings learn from next-token alone</div></a>
+      <a href="#s4"><div class="k">S1-4</div><div class="t">Data closes the generalization gap</div></a>
     </nav>
   </header>
 
-  <!-- ===================== S1-1 ===================== -->
-  <section class="proof" id="s1">
-    <div class="card">
-      <div class="hd">
-        <div class="tagrow"><span class="stag">S1-1</span></div>
-        <h2>Activations exist for a reason.</h2>
-        <div class="claim"><b>Claim.</b> A model with no nonlinearity can only draw a straight boundary, so it
-          cannot separate two concentric rings. Add a single <b>ReLU</b> hidden layer and the same data becomes easy —
-          only the activation changed.</div>
-      </div>
-      <div class="bd">
-        <div class="legend">
-          <span><span class="sw" style="background:var(--c0)"></span> Class 0 · inner ring</span>
-          <span><span class="sw" style="background:var(--c1)"></span> Class 1 · outer ring</span>
-          <span><span class="sw" style="background:linear-gradient(90deg,var(--c0-soft),var(--c1-soft))"></span> model's decision surface</span>
-        </div>
-        <div class="controls">
-          <button class="btn" data-train="s1">▶ Train both</button>
-          <button class="btn ghost small" data-reset="s1">↺ Reset</button>
-          <span class="status" id="s1-status">Idle — same 300 points feed both models.</span>
-        </div>
-        <div class="plots two">
-          <div class="panel">
-            <h4>Linear + sigmoid <span class="pill" id="s1a-arch">y = σ(Wx + b)</span></h4>
-            <canvas id="s1a" width="440" height="440"></canvas>
-            <div class="readout">
-              <div class="metric"><div class="lab">Accuracy</div><div class="val" id="s1a-acc">—</div></div>
-              <div class="metric"><div class="lab">Boundary</div><div class="val" id="s1a-shape" style="font-size:18px">straight line</div></div>
-            </div>
-          </div>
-          <div class="panel">
-            <h4>One ReLU hidden layer <span class="pill" id="s1b-arch">16 ReLU → σ</span></h4>
-            <canvas id="s1b" width="440" height="440"></canvas>
-            <div class="readout">
-              <div class="metric"><div class="lab">Accuracy</div><div class="val" id="s1b-acc">—</div></div>
-              <div class="metric"><div class="lab">Boundary</div><div class="val" id="s1b-shape" style="font-size:18px">closed curve</div></div>
-            </div>
-          </div>
-        </div>
-        <div class="verdict"><span class="vk">Money shot →</span><span id="s1-verdict">The linear model is geometrically stuck near 55%: no straight line can fence off a ring. One ReLU layer bends the surface into a loop and wraps the inner ring at ~99%.</span></div>
-      </div>
+  <!-- ===== S1-1 ===== -->
+  <section class="proof" id="s1"><div class="card">
+    <div class="hd">
+      <span class="stag">S1-1</span>
+      <h2>Activations exist for a reason.</h2>
+      <p class="thesis">A model with <b>no activation</b> can only draw a straight line, useless for two concentric
+        rings. Add one <b>nonlinear</b> hidden layer and the boundary bends into a closed loop. The data and the
+        training stay the same; only the activation changes.</p>
     </div>
-  </section>
+    <div class="bd">
+      <div class="legend">
+        <span><span class="dot" style="background:#15406B"></span> class 0 · inner ring</span>
+        <span><span class="dia" style="background:#9A3412"></span> class 1 · outer ring</span>
+        <span><span class="sw" style="background:linear-gradient(90deg,var(--reg0),var(--reg1))"></span> decision surface</span>
+      </div>
+      <div class="ctl">
+        <span class="lbl">Right model</span>
+        <div class="seg amber" id="s1-act">
+          <button class="on" data-act="relu">ReLU</button>
+          <button data-act="tanh">Tanh</button>
+        </div>
+        <div class="tl">
+          <button class="iconbtn" id="s1-play" aria-label="Play training"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20"/></svg></button>
+          <input type="range" id="s1-range" min="0" max="10" value="0" aria-label="Training timeline" />
+          <span class="ep" id="s1-ep">epoch 0</span>
+        </div>
+        <button class="btn ghost sm" id="s1-reset">Reset</button>
+      </div>
+      <div class="plots two">
+        <div class="panel">
+          <h4>Linear (no activation) <span class="pill">y = σ(Wx+b)</span></h4>
+          <canvas id="s1a" width="460" height="460"></canvas>
+          <div class="readout"><div class="metric"><div class="l">Accuracy</div><div class="v" id="s1a-acc">—</div></div>
+            <div class="metric"><div class="l">Boundary</div><div class="v" style="font-size:15px">a straight line</div></div></div>
+        </div>
+        <div class="panel">
+          <h4>Nonlinear hidden layer <span class="pill" id="s1b-arch">16 ReLU → σ</span></h4>
+          <canvas id="s1b" width="460" height="460"></canvas>
+          <div class="readout"><div class="metric"><div class="l">Accuracy</div><div class="v" id="s1b-acc">—</div></div>
+            <div class="metric"><div class="l">Boundary</div><div class="v" style="font-size:15px">a closed curve</div></div></div>
+        </div>
+      </div>
+      <div class="caption" id="s1-cap">Drag the timeline or press ▶. The left model only swivels a straight line, so it cannot close around the ring.</div>
+      <div class="verdict"><span>No straight line can fence off a ring, so the linear model sits near chance. One nonlinear layer bends the surface into a loop and separates the two classes. <b>Only the activation changed.</b></span></div>
+    </div>
+  </div></section>
 
-  <!-- ===================== S1-2 ===================== -->
-  <section class="proof" id="s2">
-    <div class="card">
-      <div class="hd">
-        <div class="tagrow"><span class="stag">S1-2</span></div>
-        <h2>Depth without nonlinearity is a lie.</h2>
-        <div class="claim"><b>Claim.</b> Five stacked <b>linear</b> layers collapse to one linear map, so a 5-layer
-          linear net is no stronger than a 1-layer one — both fail the ring task identically. Insert ReLUs between the
-          same five layers and it suddenly works. Proof it collapses: multiply the five weight matrices and watch them
-          become a single matrix.</div>
-      </div>
-      <div class="bd">
-        <div class="controls">
-          <button class="btn" data-train="s2">▶ Train all three</button>
-          <button class="btn ghost small" data-reset="s2">↺ Reset</button>
-          <span class="status" id="s2-status">Idle — same ring data as S1-1.</span>
-        </div>
-        <div class="plots three">
-          <div class="panel">
-            <h4>1 linear layer <span class="pill">depth 1</span></h4>
-            <canvas id="s2a" width="360" height="360"></canvas>
-            <div class="readout"><div class="metric"><div class="lab">Accuracy</div><div class="val" id="s2a-acc">—</div></div></div>
-          </div>
-          <div class="panel">
-            <h4>5 linear layers <span class="pill">depth 5 · no act</span></h4>
-            <canvas id="s2b" width="360" height="360"></canvas>
-            <div class="readout"><div class="metric"><div class="lab">Accuracy</div><div class="val" id="s2b-acc">—</div></div></div>
-          </div>
-          <div class="panel">
-            <h4>5 layers + ReLU <span class="pill">depth 5 · ReLU</span></h4>
-            <canvas id="s2c" width="360" height="360"></canvas>
-            <div class="readout"><div class="metric"><div class="lab">Accuracy</div><div class="val" id="s2c-acc">—</div></div></div>
-          </div>
-        </div>
-        <div class="matbox" id="s2-mat">
-          <span class="dim">// Press “Train all three”, then the five linear weight matrices are multiplied here.</span>
-        </div>
-        <div class="verdict"><span class="vk">Verdict →</span><span id="s2-verdict">Panels 1 and 2 produce the <b>same straight line</b> and the <b>same accuracy</b> — depth bought nothing without an activation. The matrix product confirms it: W₅·W₄·W₃·W₂·W₁ is one 2→1 map. ReLU breaks the tie.</span></div>
-      </div>
+  <!-- ===== S1-2 ===== -->
+  <section class="proof" id="s2"><div class="card">
+    <div class="hd">
+      <span class="stag">S1-2</span>
+      <h2>Depth without nonlinearity is a lie.</h2>
+      <p class="thesis">Five stacked <b>linear</b> layers collapse to one linear map, so a 5-layer linear net is no
+        stronger than a single layer. Both fail the ring the same way. Insert ReLUs between the same five layers and it
+        works. To see why, multiply the five trained weight matrices and watch them become <b>one</b>.</p>
     </div>
-  </section>
+    <div class="bd">
+      <div class="ctl">
+        <span class="lbl">Show</span>
+        <div class="seg" id="s2-pick">
+          <button class="on" data-k="lin1">1 linear</button>
+          <button data-k="lin5">5 linear</button>
+          <button data-k="relu5">5 + ReLU</button>
+          <button data-k="all">compare all</button>
+        </div>
+        <div class="tl">
+          <button class="iconbtn" id="s2-play" aria-label="Play training"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20"/></svg></button>
+          <input type="range" id="s2-range" min="0" max="10" value="0" />
+          <span class="ep" id="s2-ep">epoch 0</span>
+        </div>
+        <button class="btn ghost sm" id="s2-reset">Reset</button>
+      </div>
+      <div class="plots three" id="s2-plots">
+        <div class="panel" data-k="lin1"><h4>1 linear layer <span class="pill">depth 1</span></h4>
+          <canvas id="s2a" width="360" height="360"></canvas>
+          <div class="readout"><div class="metric"><div class="l">Accuracy</div><div class="v" id="s2a-acc">—</div></div></div></div>
+        <div class="panel" data-k="lin5"><h4>5 linear layers <span class="pill">no activation</span></h4>
+          <canvas id="s2b" width="360" height="360"></canvas>
+          <div class="readout"><div class="metric"><div class="l">Accuracy</div><div class="v" id="s2b-acc">—</div></div></div></div>
+        <div class="panel" data-k="relu5"><h4>5 layers + ReLU <span class="pill">nonlinear</span></h4>
+          <canvas id="s2c" width="360" height="360"></canvas>
+          <div class="readout"><div class="metric"><div class="l">Accuracy</div><div class="v" id="s2c-acc">—</div></div></div></div>
+      </div>
+      <div class="matbox" id="s2-mat"><span class="dim">// the five trained linear weight matrices, multiplied:</span></div>
+      <div class="caption" id="s2-cap">Panels 1 and 2 trace the <b>same</b> straight line. Depth bought nothing without an activation.</div>
+      <div class="verdict"><span>1 linear and 5 linear give the same line and the same accuracy. The matrix product shows why: W₅·W₄·W₃·W₂·W₁ is a single 2→1 map. ReLU breaks the tie.</span></div>
+    </div>
+  </div></section>
 
-  <!-- ===================== S1-3 ===================== -->
-  <section class="proof" id="s3">
-    <div class="card">
-      <div class="hd">
-        <div class="tagrow"><span class="stag">S1-3</span></div>
-        <h2>Embeddings learn similarity from nothing but next-token.</h2>
-        <div class="claim"><b>Claim.</b> Trained <b>only</b> to predict the next token in a tiny synthetic grammar,
-          the embedding table clusters related words — even though no notion of similarity was ever supplied.</div>
-      </div>
-      <div class="bd">
-        <div class="controls">
-          <button class="btn" data-train="s3">▶ Train next-token model</button>
-          <button class="btn ghost small" data-reset="s3">↺ Reset</button>
-          <span class="status" id="s3-status">Idle — grammar: <span class="mono">animal → verb → fruit</span>.</span>
-        </div>
-        <div class="plots two">
-          <div class="panel">
-            <h4>Learned 2-D embedding space <span class="pill" id="s3-epoch">epoch 0</span></h4>
-            <canvas id="s3plot" width="440" height="440"></canvas>
-            <div class="legend" style="margin-top:12px">
-              <span><span class="sw" style="background:var(--c0)"></span> animals</span>
-              <span><span class="sw" style="background:var(--accent)"></span> fruits</span>
-              <span><span class="sw" style="background:#6D28D9"></span> verbs</span>
-            </div>
-          </div>
-          <div class="panel">
-            <h4>What the model actually sees <span class="pill">supervision</span></h4>
-            <div style="font-size:14.5px;color:var(--ink-soft);line-height:1.7">
-              <p style="margin:.2em 0 .8em">The vocabulary is 9 words in 3 categories:</p>
-              <p class="mono" style="background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin:0 0 12px;font-size:13px">
-                animals = cat · dog · cow<br>fruits&nbsp;&nbsp;= apple · mango · banana<br>verbs&nbsp;&nbsp;&nbsp;= eat · chase · see</p>
-              <p style="margin:0 0 12px">Sentences follow one rule — <b>animal&nbsp;verb&nbsp;fruit</b> ("dog chase mango") — so the only signal is
-                <b>which word tends to follow which</b>. Words in the same category share the same next-token statistics.</p>
-              <p style="margin:0">No coordinates, no labels, no similarity is given. Yet minimizing next-token loss alone forces
-                same-category words to the same place.</p>
-            </div>
-            <div class="readout">
-              <div class="metric"><div class="lab">Next-token loss</div><div class="val" id="s3-loss" style="font-size:22px">—</div></div>
-              <div class="metric"><div class="lab">Same-cat. neighbors</div><div class="val" id="s3-purity" style="font-size:22px">—</div></div>
-            </div>
-          </div>
-        </div>
-        <div class="verdict"><span class="vk">Verdict →</span><span id="s3-verdict">Three tight clusters emerge from a pure next-token objective. Nearest neighbors become same-category — meaning was never supplied, only co-occurrence.</span></div>
-      </div>
+  <!-- ===== S1-3 ===== -->
+  <section class="proof" id="s3"><div class="card">
+    <div class="hd">
+      <span class="stag">S1-3</span>
+      <h2>Embeddings learn similarity from nothing but next-token.</h2>
+      <p class="thesis">A tiny model trains <b>only</b> to predict the next word in a toy grammar
+        (<span class="mono">animal → verb → fruit</span>). You never tell it which words are alike, yet its 2-D
+        embeddings settle into three clean clusters. Scrub the timeline to watch the clusters form.</p>
     </div>
-  </section>
+    <div class="bd">
+      <div class="ctl">
+        <div class="tl">
+          <button class="iconbtn" id="s3-play" aria-label="Play training"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20"/></svg></button>
+          <input type="range" id="s3-range" min="0" max="15" value="0" />
+          <span class="ep" id="s3-ep">step 0</span>
+        </div>
+        <button class="btn ghost sm" id="s3-reset">Reset</button>
+        <span class="note">Hover a word to highlight its nearest neighbor.</span>
+      </div>
+      <div class="plots two">
+        <div class="panel">
+          <h4>Learned 2-D embedding space <span class="pill" id="s3-pill">step 0</span></h4>
+          <canvas id="s3plot" width="460" height="460"></canvas>
+          <div class="legend" style="margin:12px 0 0">
+            <span><span class="dot" style="background:#1E40AF"></span> animals</span>
+            <span><span class="dot" style="background:#B45309"></span> fruits</span>
+            <span><span class="dot" style="background:#0F766E"></span> verbs</span>
+          </div>
+        </div>
+        <div class="panel">
+          <h4>The only supervision <span class="pill">next token</span></h4>
+          <div style="font-size:14px;color:var(--ink-2);line-height:1.7">
+            <p style="margin:.1em 0 .7em">Vocabulary: 9 words, 3 categories.</p>
+            <p class="mono" style="background:#fff;border:1px solid var(--line);border-radius:9px;padding:11px 13px;margin:0 0 12px;font-size:12.5px">
+              animals = cat · dog · cow<br>fruits&nbsp;&nbsp;= apple · mango · banana<br>verbs&nbsp;&nbsp;&nbsp;= eat · chase · see</p>
+            <p style="margin:0 0 11px">Every sentence is <b>animal verb fruit</b> ("dog chase mango"). The only signal
+              is <b>what tends to follow what</b>, and same-category words share that pattern.</p>
+            <p style="margin:0">No coordinates, no labels, no similarity. Minimizing next-token loss pulls
+              same-category words together.</p>
+          </div>
+          <div class="readout">
+            <div class="metric"><div class="l">Next-token loss</div><div class="v" id="s3-loss">—</div></div>
+            <div class="metric"><div class="l">Same-cat. neighbors</div><div class="v" id="s3-pur">—</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="caption" id="s3-cap">At step 0 the words sit at random. Press ▶ to watch three clusters form.</div>
+      <div class="verdict"><span>Three tight clusters form from a next-token objective, and nearest neighbors share a category. <b>You supplied no similarity, only co-occurrence.</b> The loss settles near ln 3 ≈ 1.10, the floor, because the next word is one of three.</span></div>
+    </div>
+  </div></section>
 
-  <!-- ===================== S1-4 ===================== -->
-  <section class="proof" id="s4">
-    <div class="card">
-      <div class="hd">
-        <div class="tagrow"><span class="stag">S1-4</span></div>
-        <h2>Memorization vs generalization — and data closes the gap.</h2>
-        <div class="claim"><b>Claim.</b> A high-capacity model on tiny data drives <b>train</b> loss to ~0 while
-          <b>held-out</b> accuracy stays poor. Grow the dataset and the gap collapses. This is the course's
-          "data is everything," made visible.</div>
-      </div>
-      <div class="bd">
-        <div class="controls">
-          <button class="btn" data-train="s4">▶ Train at 20 → 200 → 2000</button>
-          <button class="btn ghost small" data-reset="s4">↺ Reset</button>
-          <span class="status" id="s4-status">Idle — same over-parameterized net (64×64), three dataset sizes.</span>
-        </div>
-        <div class="legend">
-          <span><span class="sw" style="background:var(--c0)"></span> train accuracy</span>
-          <span><span class="sw" style="background:var(--c1)"></span> held-out (test) accuracy</span>
-          <span><span class="sw" style="background:var(--accent)"></span> generalization gap</span>
-        </div>
-        <div class="plots three">
-          <div class="panel">
-            <h4>n = 20 <span class="pill">memorizes</span></h4>
-            <canvas id="s4a" width="360" height="360"></canvas>
-            <div class="readout">
-              <div class="metric"><div class="lab">Train</div><div class="val good" id="s4a-tr" style="font-size:21px">—</div></div>
-              <div class="metric"><div class="lab">Test</div><div class="val" id="s4a-te" style="font-size:21px">—</div></div>
-            </div>
-          </div>
-          <div class="panel">
-            <h4>n = 200 <span class="pill">narrows</span></h4>
-            <canvas id="s4b" width="360" height="360"></canvas>
-            <div class="readout">
-              <div class="metric"><div class="lab">Train</div><div class="val good" id="s4b-tr" style="font-size:21px">—</div></div>
-              <div class="metric"><div class="lab">Test</div><div class="val" id="s4b-te" style="font-size:21px">—</div></div>
-            </div>
-          </div>
-          <div class="panel">
-            <h4>n = 2000 <span class="pill">generalizes</span></h4>
-            <canvas id="s4c" width="360" height="360"></canvas>
-            <div class="readout">
-              <div class="metric"><div class="lab">Train</div><div class="val good" id="s4c-tr" style="font-size:21px">—</div></div>
-              <div class="metric"><div class="lab">Test</div><div class="val" id="s4c-te" style="font-size:21px">—</div></div>
-            </div>
-          </div>
-        </div>
-        <div class="panel" style="margin-top:18px">
-          <h4>Generalization gap vs dataset size <span class="pill">train − test</span></h4>
-          <canvas id="s4gap" width="900" height="300"></canvas>
-        </div>
-        <div class="verdict"><span class="vk">Verdict →</span><span id="s4-verdict">At n = 20 the net memorizes — train ~100%, test poor. The identical net at n = 2000 generalizes and the gap nearly vanishes. The fix was never the model; it was the data.</span></div>
-      </div>
+  <!-- ===== S1-4 ===== -->
+  <section class="proof" id="s4"><div class="card">
+    <div class="hd">
+      <span class="stag">S1-4</span>
+      <h2>Memorization vs generalization, and data closes the gap.</h2>
+      <p class="thesis">Train the <b>same</b> over-parameterized net (64×64) on 20, 200, then 2000 noisy points.
+        At 20 it memorizes: train ≈ 100%, held-out poor. At 2000 the gap nearly vanishes. The <b>data</b> changed,
+        not the model.</p>
     </div>
-  </section>
+    <div class="bd">
+      <div class="ctl">
+        <span class="lbl">Dataset size</span>
+        <div class="seg" id="s4-pick">
+          <button class="on" data-n="20">n = 20</button>
+          <button data-n="200">n = 200</button>
+          <button data-n="2000">n = 2000</button>
+        </div>
+        <div class="tl">
+          <button class="iconbtn" id="s4-play" aria-label="Play training"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20"/></svg></button>
+          <input type="range" id="s4-range" min="0" max="10" value="0" />
+          <span class="ep" id="s4-ep">epoch 0</span>
+        </div>
+        <button class="btn ghost sm" id="s4-reset">Reset</button>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:#15406B"></span> training points</span>
+        <span><span class="sw" style="background:linear-gradient(90deg,var(--reg0),var(--reg1))"></span> what the net learned</span>
+        <span><span class="sw" style="background:#1E40AF"></span> train acc</span>
+        <span><span class="sw" style="background:#0F766E"></span> test acc</span>
+      </div>
+      <div class="plots two">
+        <div class="panel">
+          <h4>Decision surface <span class="pill" id="s4-pill">n = 20</span></h4>
+          <canvas id="s4plot" width="460" height="460"></canvas>
+          <div class="readout">
+            <div class="metric"><div class="l">Train acc</div><div class="v good" id="s4-tr">—</div></div>
+            <div class="metric"><div class="l">Test acc</div><div class="v" id="s4-te">—</div></div>
+            <div class="metric"><div class="l">Gap</div><div class="v" id="s4-gap">—</div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h4>Generalization gap vs data <span class="pill">train − test</span></h4>
+          <canvas id="s4bars" width="460" height="460"></canvas>
+          <div class="note">Bars show final train and test accuracy at each size. The gap is the lie a small dataset tells.</div>
+        </div>
+      </div>
+      <div class="caption" id="s4-cap">At n = 20 the surface contorts to fit each point, including the noisy ones.</div>
+      <div class="verdict"><span>n=20 memorizes (train ~100%, test poor). The same net at n=2000 generalizes and the gap collapses. <b>More data closed it, not a better model.</b> This is the course's "data is everything."</span></div>
+    </div>
+  </div></section>
 
   <footer>
     <div class="rule"></div>
-    <p><b>Session 1 · From Neural Networks to the Transformer.</b> Four experiments, one browser, zero pre-baked plots.<br>
-    Built for ERA V5 on the Axiom Learning OS. Trains live with TensorFlow.js — reload to re-run from scratch.</p>
+    <p><b>ERA V5 · Session 1 · From Neural Networks to the Transformer.</b><br>
+    Four interactive proofs · precomputed by default, live TensorFlow.js on demand · built on the Axiom Learning OS.</p>
   </footer>
-
 </div>
 
+<script src="data.js"></script>
 <script>
-/* ============================================================
-   Utilities
-   ============================================================ */
-const $ = id => document.getElementById(id);
-function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-function gauss(rng){let u=0,v=0;while(!u)u=rng();while(!v)v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
-const sleep = ms => new Promise(r=>setTimeout(r,ms));
+/* =========================================================================
+   shared utilities
+   ========================================================================= */
+const $=id=>document.getElementById(id);
+const P=window.PRECOMP, G=P.meta.G;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const pct=a=>(a*100).toFixed(1)+'%';
+const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let MODE='pre';
 
-/* ---- data: two concentric rings ---- */
-function makeRings(n, noise, seed){
-  const rng=mulberry32(seed); const m=n>>1; const X=[],y=[];
-  for(let i=0;i<n;i++){
-    const inner=i<m; const r=(inner?0.30:0.70)+gauss(rng)*noise; const t=rng()*2*Math.PI;
-    X.push([r*Math.cos(t), r*Math.sin(t)]); y.push(inner?0:1);
-  }
-  return {X,y};
+function decodeGrid(b64){
+  const bin=atob(b64); const n=bin.length; const f=new Float32Array(n);
+  for(let i=0;i<n;i++) f[i]=bin.charCodeAt(i)/255;
+  return f;                       // length G*G, order row(y)*G + col(x)
 }
-/* ---- data: noisy XOR-sign with label noise ---- */
-function makeNoisy(n, seed){
-  const rng=mulberry32(seed); const X=[],y=[];
-  for(let i=0;i<n;i++){
-    const a=gauss(rng), b=gauss(rng); let lab=(a*b>0)?1:0;
-    if(rng()<0.10) lab=1-lab;
-    X.push([a,b]); y.push(lab);
-  }
-  return {X,y};
-}
+const REG0=[226,236,248], REG1=[250,232,206];
 
-/* ============================================================
-   Plotting: decision surface + scatter on a canvas
-   ============================================================ */
 class Board{
-  constructor(canvasId, dom){           // dom = [min,max] symmetric box
-    this.cv=$(canvasId); this.ctx=this.cv.getContext('2d');
-    this.W=this.cv.width; this.H=this.cv.height; this.dom=dom;
-    this.grid=this._mkGrid(64);
-    this.clear();
-  }
-  _mkGrid(G){
-    const [a,b]=this.dom; const pts=[]; this.G=G;
-    for(let j=0;j<G;j++) for(let i=0;i<G;i++){
-      pts.push([a+(b-a)*(i+0.5)/G, a+(b-a)*(j+0.5)/G]);
-    }
-    return tf.tensor2d(pts);
-  }
-  toPx(x,y){const [a,b]=this.dom;return [ (x-a)/(b-a)*this.W, this.H-(y-a)/(b-a)*this.H ];}
-  clear(){this.ctx.fillStyle='#fff';this.ctx.fillRect(0,0,this.W,this.H);this._frame();}
-  _frame(){this.ctx.strokeStyle='#EFE7D7';this.ctx.lineWidth=1;this.ctx.strokeRect(.5,.5,this.W-1,this.H-1);}
-  // probs: Float32Array length G*G in [0,1] = P(class1)
-  surface(probs){
-    const G=this.G, cell=this.W/G, img=this.ctx;
-    // class0 teal (15,118,110) soft -> class1 rust (185,28,28) soft
-    for(let j=0;j<G;j++) for(let i=0;i<G;i++){
-      const p=probs[j*G+i];
-      const r=Math.round(207+(244-207)*p), g=Math.round(232+(214-232)*p), b=Math.round(228+(210-228)*p);
-      img.fillStyle=`rgb(${r},${g},${b})`;
-      img.fillRect(Math.floor(i*cell), Math.floor(this.H-(j+1)*cell), Math.ceil(cell)+1, Math.ceil(cell)+1);
-    }
-    // decision contour at p=0.5
-    img.strokeStyle='rgba(28,24,20,.45)';img.lineWidth=1.5;
-    for(let j=0;j<G;j++)for(let i=0;i<G;i++){
-      const p=probs[j*G+i];
-      if(i+1<G){const q=probs[j*G+i+1]; if((p-0.5)*(q-0.5)<0){const x=this.W*(i+1)/G;img.beginPath();img.moveTo(x,this.H-this.H*j/G);img.lineTo(x,this.H-this.H*(j+1)/G);img.stroke();}}
-      if(j+1<G){const q=probs[(j+1)*G+i]; if((p-0.5)*(q-0.5)<0){const yy=this.H-this.H*(j+1)/G;img.beginPath();img.moveTo(this.W*i/G,yy);img.lineTo(this.W*(i+1)/G,yy);img.stroke();}}
-    }
-    this._frame();
-  }
-  points(X,y){
-    const ctx=this.ctx;
-    for(let i=0;i<X.length;i++){
-      const [px,py]=this.toPx(X[i][0],X[i][1]);
-      ctx.beginPath();ctx.arc(px,py,3.4,0,7);
-      ctx.fillStyle = y[i]===0 ? '#0F766E':'#B91C1C';
-      ctx.globalAlpha=.92;ctx.fill();ctx.globalAlpha=1;
-      ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,.85)';ctx.stroke();
-    }
-  }
-  async render(model, X, y){
-    const t=model.predict(this.grid); const probs=await t.data(); t.dispose();
-    this.clear(); this.surface(probs); this.points(X,y);
-  }
+  constructor(id,dom){this.cv=$(id);this.ctx=this.cv.getContext('2d');
+    this.W=this.cv.width;this.H=this.cv.height;this.dom=dom;}
+  px(x,y){const[a,b]=this.dom;return[(x-a)/(b-a)*this.W, this.H-(y-a)/(b-a)*this.H];}
+  clear(){this.ctx.clearRect(0,0,this.W,this.H);this.ctx.fillStyle='#fff';this.ctx.fillRect(0,0,this.W,this.H);}
+  grid(f){const ctx=this.ctx,cw=this.W/G,ch=this.H/G;
+    for(let r=0;r<G;r++)for(let c=0;c<G;c++){const p=f[r*G+c];
+      const R=Math.round(REG0[0]+(REG1[0]-REG0[0])*p),Gc=Math.round(REG0[1]+(REG1[1]-REG0[1])*p),B=Math.round(REG0[2]+(REG1[2]-REG0[2])*p);
+      ctx.fillStyle=`rgb(${R},${Gc},${B})`;
+      ctx.fillRect(Math.floor(c*cw),Math.floor(this.H-(r+1)*ch),Math.ceil(cw)+1,Math.ceil(ch)+1);}
+    // 0.5 contour
+    ctx.strokeStyle='rgba(16,35,56,.5)';ctx.lineWidth=1.6;
+    for(let r=0;r<G;r++)for(let c=0;c<G;c++){const p=f[r*G+c];
+      if(c+1<G&&(p-0.5)*(f[r*G+c+1]-0.5)<0){const x=this.W*(c+1)/G;ctx.beginPath();ctx.moveTo(x,this.H-this.H*r/G);ctx.lineTo(x,this.H-this.H*(r+1)/G);ctx.stroke();}
+      if(r+1<G&&(p-0.5)*(f[(r+1)*G+c]-0.5)<0){const y=this.H-this.H*(r+1)/G;ctx.beginPath();ctx.moveTo(this.W*c/G,y);ctx.lineTo(this.W*(c+1)/G,y);ctx.stroke();}}
+    this.frame();}
+  points(pt){const ctx=this.ctx;
+    for(let i=0;i<pt.x.length;i++){const[px,py]=this.px(pt.x[i],pt.y[i]);
+      ctx.save();ctx.translate(px,py);
+      if(pt.c[i]===0){ctx.fillStyle='#15406B';ctx.beginPath();ctx.arc(0,0,3.4,0,7);ctx.fill();
+        ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,.85)';ctx.stroke();}
+      else{ctx.fillStyle='#9A3412';ctx.rotate(Math.PI/4);ctx.fillRect(-2.7,-2.7,5.4,5.4);
+        ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,.85)';ctx.strokeRect(-2.7,-2.7,5.4,5.4);}
+      ctx.restore();}}
+  frame(){this.ctx.strokeStyle='#E3EAF2';this.ctx.lineWidth=1;this.ctx.strokeRect(.5,.5,this.W-1,this.H-1);}
+  empty(msg){this.clear();this.frame();this.ctx.fillStyle='#8A9BB0';this.ctx.font='13px IBM Plex Sans, sans-serif';
+    this.ctx.textAlign='center';this.ctx.fillText(msg,this.W/2,this.H/2);}
 }
 
-/* ============================================================
-   Model builders
-   ============================================================ */
-function linearClassifier(){
-  const m=tf.sequential();
-  m.add(tf.layers.dense({inputShape:[2],units:1,activation:'sigmoid'}));
-  m.compile({optimizer:tf.train.adam(0.06),loss:'binaryCrossentropy'});
-  return m;
-}
-function reluClassifier(units=16){
-  const m=tf.sequential();
-  m.add(tf.layers.dense({inputShape:[2],units,activation:'relu'}));
-  m.add(tf.layers.dense({units:1,activation:'sigmoid'}));
-  m.compile({optimizer:tf.train.adam(0.05),loss:'binaryCrossentropy'});
-  return m;
-}
-function deepLinear(){            // 5 weight layers, NO activation
-  const m=tf.sequential();
-  m.add(tf.layers.dense({inputShape:[2],units:8,activation:'linear',useBias:true}));
-  m.add(tf.layers.dense({units:8,activation:'linear',useBias:true}));
-  m.add(tf.layers.dense({units:8,activation:'linear',useBias:true}));
-  m.add(tf.layers.dense({units:8,activation:'linear',useBias:true}));
-  m.add(tf.layers.dense({units:1,activation:'sigmoid',useBias:true})); // sigmoid only reads ONE linear score
-  m.compile({optimizer:tf.train.adam(0.05),loss:'binaryCrossentropy'});
-  return m;
-}
-function deepReLU(){
-  const m=tf.sequential();
-  for(let k=0;k<4;k++) m.add(tf.layers.dense(k===0?{inputShape:[2],units:16,activation:'relu'}:{units:16,activation:'relu'}));
-  m.add(tf.layers.dense({units:1,activation:'sigmoid'}));
-  m.compile({optimizer:tf.train.adam(0.04),loss:'binaryCrossentropy'});
-  return m;
-}
-function bigClassifier(){
-  const m=tf.sequential();
-  m.add(tf.layers.dense({inputShape:[2],units:64,activation:'relu'}));
-  m.add(tf.layers.dense({units:64,activation:'relu'}));
-  m.add(tf.layers.dense({units:1,activation:'sigmoid'}));
-  m.compile({optimizer:tf.train.adam(0.01),loss:'binaryCrossentropy'});
-  return m;
-}
-async function accuracy(model,X,y){
-  return tf.tidy(()=>{
-    const p=model.predict(tf.tensor2d(X));
-    const pred=p.greater(0.5).cast('int32').reshape([-1]);
-    const yt=tf.tensor1d(y,'int32');
-    return pred.equal(yt).mean().arraySync();
+/* lazy TensorFlow.js loader (only when Live mode is used) */
+let tfPromise=null;
+function ensureTF(){
+  if(tfPromise) return tfPromise;
+  tfPromise=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js';
+    s.onload=()=>res(window.tf); s.onerror=()=>rej(new Error('TF load failed'));
+    document.head.appendChild(s);
   });
+  return tfPromise;
 }
-const pct = a => (a*100).toFixed(1)+'%';
+/* build a [G*G,2] grid of domain points in row(y)*G+col(x) order */
+function gridPoints(dom){const[a,b]=dom,xs=[];for(let i=0;i<G;i++)xs.push(a+(b-a)*i/(G-1));
+  const pts=[];for(let r=0;r<G;r++)for(let c=0;c<G;c++)pts.push([xs[c],xs[r]]);return pts;}
 
-/* ============================================================
-   S1-1
-   ============================================================ */
-const RING = makeRings(300,0.055,7);
-let s1=null;
-async function trainS1(){
-  resetS1();
-  const btns=document.querySelectorAll('[data-train="s1"]'); btns.forEach(b=>b.disabled=true);
-  const Xt=tf.tensor2d(RING.X), Yt=tf.tensor2d(RING.y,[RING.y.length,1]);
-  const lin=linearClassifier(), rel=reluClassifier(16);
-  const bA=new Board('s1a',[-1,1]), bB=new Board('s1b',[-1,1]);
-  s1={models:[lin,rel],tensors:[Xt,Yt]};
-  bA.points(RING.X,RING.y); bB.points(RING.X,RING.y);
-  const EP=70;
-  for(let e=1;e<=EP;e++){
-    await lin.fit(Xt,Yt,{epochs:1,batchSize:64,shuffle:true,verbose:0});
-    await rel.fit(Xt,Yt,{epochs:1,batchSize:64,shuffle:true,verbose:0});
-    if(e%3===0||e===EP){
-      await bA.render(lin,RING.X,RING.y); await bB.render(rel,RING.X,RING.y);
-      const aA=await accuracy(lin,RING.X,RING.y), aB=await accuracy(rel,RING.X,RING.y);
-      setAcc('s1a-acc',aA); setAcc('s1b-acc',aB);
-      $('s1-status').innerHTML=`<span class="live">● training</span> · epoch ${e}/${EP}`;
-      await tf.nextFrame();
+/* generic live trainer -> returns {frames:[Float32Array],accs:[],extra} */
+async function liveTrain(tf, buildModel, X, y, dom, epochs, sched, onProg, extraFn){
+  const xs=tf.tensor2d(X), ys=tf.tensor2d(y.map(v=>[v]));
+  const gp=tf.tensor2d(gridPoints(dom));
+  const model=buildModel(tf);
+  const frames=[],accs=[],extra=[];
+  const schedSet=new Set(sched);
+  for(let e=0;e<=epochs;e++){
+    if(schedSet.has(e)){
+      const pr=model.predict(gp); const f=Float32Array.from(await pr.data()); pr.dispose();
+      frames.push(f);
+      const pa=model.predict(xs); const arr=await pa.data(); pa.dispose();
+      let ok=0;for(let i=0;i<y.length;i++) ok+=((arr[i]>0.5?1:0)===y[i]);
+      accs.push(ok/y.length);
+      if(extraFn) extra.push(extraFn(model,tf));
+      if(onProg) await onProg(e,frames.length-1);
     }
+    if(e<epochs){await model.fit(xs,ys,{epochs:1,batchSize:Math.min(64,X.length),shuffle:true,verbose:0});}
+    await tf.nextFrame();
   }
-  const aA=await accuracy(lin,RING.X,RING.y), aB=await accuracy(rel,RING.X,RING.y);
-  $('s1-status').innerHTML=`Done. Linear stalled at <b>${pct(aA)}</b>; ReLU reached <b>${pct(aB)}</b>.`;
-  btns.forEach(b=>b.disabled=false);
-}
-function setAcc(id,a){const el=$(id);el.textContent=pct(a);el.className='val '+(a>=0.9?'good':a<0.7?'bad':'');}
-function resetS1(){
-  if(s1){s1.models.forEach(m=>m.dispose());s1.tensors.forEach(t=>t.dispose());s1=null;}
-  new Board('s1a',[-1,1]).points(RING.X,RING.y);
-  new Board('s1b',[-1,1]).points(RING.X,RING.y);
-  $('s1a-acc').textContent='—';$('s1b-acc').textContent='—';$('s1a-acc').className='val';$('s1b-acc').className='val';
-  $('s1-status').textContent='Idle — same 300 points feed both models.';
+  xs.dispose();ys.dispose();gp.dispose();model.dispose();
+  return {frames,accs,extra};
 }
 
-/* ============================================================
-   S1-2
-   ============================================================ */
-let s2=null;
-async function trainS2(){
-  resetS2();
-  const btns=document.querySelectorAll('[data-train="s2"]'); btns.forEach(b=>b.disabled=true);
-  const Xt=tf.tensor2d(RING.X), Yt=tf.tensor2d(RING.y,[RING.y.length,1]);
-  const m1=linearClassifier(), m5=deepLinear(), mr=deepReLU();
-  const bA=new Board('s2a',[-1,1]), bB=new Board('s2b',[-1,1]), bC=new Board('s2c',[-1,1]);
-  s2={models:[m1,m5,mr],tensors:[Xt,Yt]};
-  [bA,bB,bC].forEach(b=>b.points(RING.X,RING.y));
-  const EP=80;
-  for(let e=1;e<=EP;e++){
-    await m1.fit(Xt,Yt,{epochs:1,batchSize:64,shuffle:true,verbose:0});
-    await m5.fit(Xt,Yt,{epochs:1,batchSize:64,shuffle:true,verbose:0});
-    await mr.fit(Xt,Yt,{epochs:1,batchSize:64,shuffle:true,verbose:0});
-    if(e%4===0||e===EP){
-      await bA.render(m1,RING.X,RING.y); await bB.render(m5,RING.X,RING.y); await bC.render(mr,RING.X,RING.y);
-      setAcc('s2a-acc',await accuracy(m1,RING.X,RING.y));
-      setAcc('s2b-acc',await accuracy(m5,RING.X,RING.y));
-      setAcc('s2c-acc',await accuracy(mr,RING.X,RING.y));
-      $('s2-status').innerHTML=`<span class="live">● training</span> · epoch ${e}/${EP}`;
-      await tf.nextFrame();
-    }
+/* simple play controller bound to a range input */
+function makePlayer(range,playBtn,onFrame,getMax){
+  let timer=null;
+  function setIcon(p){playBtn.innerHTML=p?'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20"/></svg>';}
+  function stop(){if(timer){clearInterval(timer);timer=null;setIcon(false);}}
+  function play(){
+    if(timer){stop();return;}
+    if(+range.value>=getMax())range.value=0;
+    setIcon(true);
+    timer=setInterval(()=>{
+      let v=+range.value+1;
+      if(v>getMax()){stop();return;}
+      range.value=v;onFrame(v);
+    }, reduceMotion?1:170);
   }
-  collapseMatrices(m5);
-  $('s2-status').innerHTML=`Done. 1-linear and 5-linear match; ReLU wins.`;
-  btns.forEach(b=>b.disabled=false);
+  playBtn.onclick=play;
+  range.oninput=()=>{stop();onFrame(+range.value);};
+  return {stop,play,setIcon};
 }
-function collapseMatrices(m5){
-  // multiply the 4 hidden linear kernels + final kernel -> single 2x1
-  tf.tidy(()=>{
-    const kernels=m5.layers.map(l=>l.getWeights()).filter(w=>w.length).map(w=>w[0]);
-    let prod=kernels[0]; const shapes=[kernels[0].shape.slice()];
-    for(let i=1;i<kernels.length;i++){prod=prod.matMul(kernels[i]);shapes.push(kernels[i].shape.slice());}
-    const arr=prod.arraySync(); // 2x1
-    const chain=shapes.map(s=>`${s[0]}×${s[1]}`).join(' · ');
-    $('s2-mat').innerHTML =
-      `<span class="dim">// the 5 trained linear weight matrices, shapes:</span>\n`+
-      `W1·W2·W3·W4·W5  =  <span class="hl">${chain}</span>\n`+
-      `<span class="dim">// matrix-multiplied together they collapse to a single 2→1 map:</span>\n`+
-      `<span class="g">W_eff = [ ${arr[0][0].toFixed(4)} , ${arr[1][0].toFixed(4)} ]ᵀ  →  shape 2×1</span>\n`+
-      `<span class="dim">// i.e. 5 linear layers ≡ one linear layer. Depth added zero capacity.</span>`;
+
+/* =========================================================================
+   S1-1  activations
+   ========================================================================= */
+const S1={data:{linear:null,relu:null,tanh:null},act:'relu',player:null,boardA:null,boardB:null,live:false};
+function s1FramesPre(){const m=P.s11.models;return{linear:m.linear,nl:m[S1.act]};}
+function s1Render(idx){
+  const src=S1.live?S1.dataLive:s1FramesPre();
+  const lin=src.linear, nl=src.nl;
+  const maxi=lin.frames.length-1; idx=clamp(idx,0,maxi);
+  S1.boardA.clear();S1.boardA.grid(decodeOr(lin.frames[idx]));S1.boardA.points(P.s11.points);
+  S1.boardB.clear();S1.boardB.grid(decodeOr(nl.frames[idx]));S1.boardB.points(P.s11.points);
+  $('s1a-acc').textContent=pct(lin.acc[idx]); accClass($('s1a-acc'),lin.acc[idx]);
+  $('s1b-acc').textContent=pct(nl.acc[idx]); accClass($('s1b-acc'),nl.acc[idx]);
+  const eps=epochLabel(idx,maxi,70); $('s1-ep').textContent='epoch '+eps;
+  const nm=S1.act==='relu'?'ReLU':'Tanh';
+  $('s1-cap').innerHTML = nl.acc[idx]>0.9
+    ? `The <b>${nm}</b> surface wrapped the inner ring at <b>${pct(nl.acc[idx])}</b>. The linear model is still a flat line at <b>${pct(lin.acc[idx])}</b>.`
+    : `The linear model (left) can only swivel a straight line. The ${nm} model (right) is starting to curve.`;
+}
+function decodeOr(fr){return (typeof fr==='string')?decodeGrid(fr):fr;}
+function accClass(el,a){el.className='v '+(a>=0.9?'good':a<0.7?'bad':'');}
+function epochLabel(idx,maxi,total){return Math.round(total*Math.pow(idx/maxi,1.7));}
+
+function s1Init(){
+  S1.boardA=new Board('s1a',P.s11.domain);S1.boardB=new Board('s1b',P.s11.domain);
+  const range=$('s1-range');
+  S1.player=makePlayer(range,$('s1-play'),s1Render,()=> (S1.live?S1.dataLive.linear.frames.length-1:P.s11.models.linear.frames.length-1));
+  $('s1-act').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    $('s1-act').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+    S1.act=b.dataset.act;$('s1b-arch').textContent=(S1.act==='relu'?'16 ReLU → σ':'16 Tanh → σ');
+    if(S1.live){s1TrainLive();}else{s1Render(+range.value);}
   });
+  $('s1-reset').onclick=()=>{S1.player.stop();range.value=0;s1Render(0);};
+  s1Render(0);
 }
-function resetS2(){
-  if(s2){s2.models.forEach(m=>m.dispose());s2.tensors.forEach(t=>t.dispose());s2=null;}
-  ['s2a','s2b','s2c'].forEach(c=>new Board(c,[-1,1]).points(RING.X,RING.y));
-  ['s2a-acc','s2b-acc','s2c-acc'].forEach(id=>{$(id).textContent='—';$(id).className='val';});
-  $('s2-mat').innerHTML='<span class="dim">// Press “Train all three”, then the five linear weight matrices are multiplied here.</span>';
-  $('s2-status').textContent='Idle — same ring data as S1-1.';
+async function s1TrainLive(){
+  const tf=await ensureTF(); S1.player.stop();
+  const X=P.s11.points.x.map((x,i)=>[x,P.s11.points.y[i]]); const y=P.s11.points.c;
+  $('s1-cap').textContent='Training live in your browser…';
+  const sched=[0,1,2,4,7,11,17,25,36,50,70];
+  const lin=await liveTrain(tf,t=>{const m=t.sequential();m.add(t.layers.dense({inputShape:[2],units:1,activation:'sigmoid'}));m.compile({optimizer:t.train.adam(0.06),loss:'binaryCrossentropy'});return m;},X,y,P.s11.domain,70,sched);
+  const actf=S1.act;
+  const nl=await liveTrain(tf,t=>{const m=t.sequential();m.add(t.layers.dense({inputShape:[2],units:16,activation:actf}));m.add(t.layers.dense({units:1,activation:'sigmoid'}));m.compile({optimizer:t.train.adam(0.05),loss:'binaryCrossentropy'});return m;},X,y,P.s11.domain,70,sched);
+  S1.dataLive={linear:{frames:lin.frames,acc:lin.accs},nl:{frames:nl.frames,acc:nl.accs}};
+  $('s1-range').max=lin.frames.length-1;$('s1-range').value=lin.frames.length-1;
+  s1Render(lin.frames.length-1);
 }
 
-/* ============================================================
-   S1-3  toy-grammar embeddings
-   ============================================================ */
-const VOCAB=['cat','dog','cow','apple','mango','banana','eat','chase','see'];
-const CAT  =[0,0,0,1,1,1,2,2,2]; // 0 animal,1 fruit,2 verb
-const CATCOL=['#0F766E','#B45309','#6D28D9'];
-function grammarPairs(N,seed){
-  const rng=mulberry32(seed); const A=[0,1,2],F=[3,4,5],V=[6,7,8]; const x=[],y=[];
-  for(let i=0;i<N;i++){
-    const a=A[(rng()*3)|0], v=V[(rng()*3)|0], f=F[(rng()*3)|0];
-    x.push(a);y.push(v);   // animal -> verb
-    x.push(v);y.push(f);   // verb -> fruit
+/* =========================================================================
+   S1-2  depth
+   ========================================================================= */
+const S2={pick:'lin1',boards:{},player:null,live:false,dataLive:null};
+function s2Src(){return S2.live?S2.dataLive:P.s12.models;}
+function s2Render(idx){
+  const M=s2Src(); const maxi=M.lin1.frames.length-1; idx=clamp(idx,0,maxi);
+  for(const [k,bid,aid] of [['lin1','s2a','s2a-acc'],['lin5','s2b','s2b-acc'],['relu5','s2c','s2c-acc']]){
+    S2.boards[k].clear();S2.boards[k].grid(decodeOr(M[k].frames[idx]));S2.boards[k].points(P.s12.points);
+    $(aid).textContent=pct(M[k].acc[idx]);accClass($(aid),M[k].acc[idx]);
   }
-  return {x,y};
+  $('s2-ep').textContent='epoch '+epochLabel(idx,maxi,80);
+  const d=Math.abs(M.lin1.acc[idx]-M.lin5.acc[idx]);
+  $('s2-cap').innerHTML = M.relu5.acc[idx]>0.9
+    ? `1 linear and 5 linear sit at <b>${pct(M.lin1.acc[idx])}</b> and <b>${pct(M.lin5.acc[idx])}</b>, the same line. Only <b>5 + ReLU</b> reaches ${pct(M.relu5.acc[idx])}.`
+    : `Panels 1 and 2 move in lockstep. Depth alone changes nothing.`;
+  s2Matrix();
 }
-let s3=null;
-async function trainS3(){
-  resetS3();
-  const btns=document.querySelectorAll('[data-train="s3"]'); btns.forEach(b=>b.disabled=true);
-  const {x,y}=grammarPairs(2000,3);
-  const xt=tf.tensor2d(x,[x.length,1]), yt=tf.tensor1d(y,'float32'); // sparseCCE needs float labels in tfjs
+function s2Matrix(){
+  const c=P.s12.collapse; const chain=c.shapes.map(s=>`${s[0]}×${s[1]}`).join(' · ');
+  $('s2-mat').innerHTML =
+    `<span class="dim">// the five trained linear weight matrices:</span>\nW1·W2·W3·W4·W5  =  <span class="hl">${chain}</span>\n`+
+    `<span class="dim">// multiplied together they collapse to a single 2→1 map:</span>\n`+
+    `<span class="g">W_eff = [ ${c.weff[0].toFixed(4)} , ${c.weff[1].toFixed(4)} ]ᵀ   (shape 2×1)</span>\n`+
+    `<span class="dim">// 5 linear layers ≡ 1 linear layer. Depth added zero capacity.</span>`;
+}
+function s2ApplyPick(){
+  const plots=$('s2-plots'); const k=S2.pick;
+  const vis = k==='all' ? ['lin1','lin5','relu5'] : (k==='relu5' ? ['lin5','relu5'] : [k,'relu5']);
+  plots.className='plots '+(vis.length===3?'three':'two');
+  plots.querySelectorAll('.panel').forEach(p=>{p.style.display=vis.includes(p.dataset.k)?'':'none';});
+}
+function s2Init(){
+  S2.boards={lin1:new Board('s2a',P.s12.domain),lin5:new Board('s2b',P.s12.domain),relu5:new Board('s2c',P.s12.domain)};
+  const range=$('s2-range');
+  S2.player=makePlayer(range,$('s2-play'),s2Render,()=>s2Src().lin1.frames.length-1);
+  $('s2-pick').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    $('s2-pick').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+    S2.pick=b.dataset.k;s2ApplyPick();
+  });
+  $('s2-reset').onclick=()=>{S2.player.stop();range.value=0;s2Render(0);};
+  s2ApplyPick();s2Render(0);
+}
+async function s2TrainLive(){
+  const tf=await ensureTF();S2.player.stop();
+  const X=P.s12.points.x.map((x,i)=>[x,P.s12.points.y[i]]);const y=P.s12.points.c;
+  const sched=[0,1,2,4,7,11,17,25,36,52,80];
+  $('s2-cap').textContent='Training live in your browser…';
+  const lin1=await liveTrain(tf,t=>{const m=t.sequential();m.add(t.layers.dense({inputShape:[2],units:1,activation:'sigmoid'}));m.compile({optimizer:t.train.adam(0.06),loss:'binaryCrossentropy'});return m;},X,y,P.s12.domain,80,sched);
+  const lin5=await liveTrain(tf,t=>{const m=t.sequential();for(let i=0;i<4;i++)m.add(t.layers.dense(i===0?{inputShape:[2],units:8,activation:'linear'}:{units:8,activation:'linear'}));m.add(t.layers.dense({units:1,activation:'sigmoid'}));m.compile({optimizer:t.train.adam(0.03),loss:'binaryCrossentropy'});return m;},X,y,P.s12.domain,80,sched);
+  const relu5=await liveTrain(tf,t=>{const m=t.sequential();for(let i=0;i<4;i++)m.add(t.layers.dense(i===0?{inputShape:[2],units:16,activation:'relu'}:{units:16,activation:'relu'}));m.add(t.layers.dense({units:1,activation:'sigmoid'}));m.compile({optimizer:t.train.adam(0.04),loss:'binaryCrossentropy'});return m;},X,y,P.s12.domain,80,sched);
+  S2.dataLive={lin1:{frames:lin1.frames,acc:lin1.accs},lin5:{frames:lin5.frames,acc:lin5.accs},relu5:{frames:relu5.frames,acc:relu5.accs}};
+  range2to(lin1.frames.length-1);s2Render(lin1.frames.length-1);
+}
+function range2to(v){$('s2-range').max=v;$('s2-range').value=v;}
+
+/* =========================================================================
+   S1-3  embeddings
+   ========================================================================= */
+const S3={player:null,board:null,live:false,emb:null,loss:null,pur:null,hover:-1};
+function s3Cur(){return S3.live?S3.dataLive:{emb:P.s13.emb,loss:P.s13.loss,purity:P.s13.purity};}
+function s3Render(idx){
+  const d=s3Cur(); const maxi=d.emb.length-1; idx=clamp(idx,0,maxi);
+  drawEmb(d.emb[idx]); $('s3-pill').textContent='step '+idx; $('s3-ep').textContent='step '+idx;
+  $('s3-loss').textContent=d.loss[idx].toFixed(3); $('s3-pur').textContent=d.purity[idx]+' / 9';
+  $('s3-cap').innerHTML = d.purity[idx]>=8
+    ? `Three clusters have locked in. <b>${d.purity[idx]}/9</b> words now sit nearest a same-category word, from next-token training alone.`
+    : `Step ${idx}: the embeddings are still separating (${d.purity[idx]}/9 same-category neighbors).`;
+}
+function drawEmb(emb){
+  const b=S3.board,ctx=b.ctx,W=b.W,H=b.H,pad=46;
+  b.clear();b.frame();
+  let mn=1e9,mx=-1e9;emb.forEach(p=>p.forEach(v=>{mn=Math.min(mn,v);mx=Math.max(mx,v);}));
+  const sp=(mx-mn)||1,m2=mn-sp*0.2,M2=mx+sp*0.2;
+  const X=v=>pad+(v-m2)/(M2-m2)*(W-2*pad),Y=v=>H-pad-(v-m2)/(M2-m2)*(H-2*pad);
+  const col=['#1E40AF','#B45309','#0F766E'],cat=P.s13.cat,voc=P.s13.vocab;
+  // nearest-neighbor link on hover
+  if(S3.hover>=0){let bi=-1,bd=1e9;for(let j=0;j<9;j++){if(j===S3.hover)continue;const dx=emb[S3.hover][0]-emb[j][0],dy=emb[S3.hover][1]-emb[j][1];const dd=dx*dx+dy*dy;if(dd<bd){bd=dd;bi=j;}}
+    ctx.strokeStyle='rgba(16,35,56,.32)';ctx.lineWidth=1.6;ctx.setLineDash([4,3]);
+    ctx.beginPath();ctx.moveTo(X(emb[S3.hover][0]),Y(emb[S3.hover][1]));ctx.lineTo(X(emb[bi][0]),Y(emb[bi][1]));ctx.stroke();ctx.setLineDash([]);}
+  for(let i=0;i<9;i++){const px=X(emb[i][0]),py=Y(emb[i][1]);const hl=(i===S3.hover);
+    ctx.beginPath();ctx.arc(px,py,hl?8:6,0,7);ctx.fillStyle=col[cat[i]];ctx.globalAlpha=hl?1:.9;ctx.fill();ctx.globalAlpha=1;
+    ctx.lineWidth=hl?2.4:1.4;ctx.strokeStyle='#fff';ctx.stroke();
+    ctx.fillStyle='#102338';ctx.font=(hl?'600 ':'500 ')+'13px IBM Plex Sans, sans-serif';ctx.textAlign='center';
+    ctx.fillText(voc[i],px,py-11);}
+  S3._proj={X,Y,emb};
+}
+function s3Init(){
+  S3.board=new Board('s3plot',[0,1]);
+  const range=$('s3-range');
+  S3.player=makePlayer(range,$('s3-play'),s3Render,()=>s3Cur().emb.length-1);
+  $('s3-reset').onclick=()=>{S3.player.stop();range.value=0;s3Render(0);};
+  const cv=$('s3plot');
+  cv.addEventListener('mousemove',ev=>{
+    if(!S3._proj)return;const r=cv.getBoundingClientRect();const mx=(ev.clientX-r.left)*cv.width/r.width,my=(ev.clientY-r.top)*cv.height/r.height;
+    let bi=-1,bd=1e9;S3._proj.emb.forEach((p,i)=>{const dx=S3._proj.X(p[0])-mx,dy=S3._proj.Y(p[1])-my;const dd=dx*dx+dy*dy;if(dd<bd){bd=dd;bi=i;}});
+    const nh=bd<400?bi:-1;if(nh!==S3.hover){S3.hover=nh;s3Render(+range.value);}
+  });
+  cv.addEventListener('mouseleave',()=>{if(S3.hover!==-1){S3.hover=-1;s3Render(+range.value);}});
+  s3Render(0);
+}
+async function s3TrainLive(){
+  const tf=await ensureTF();S3.player.stop();
+  $('s3-cap').textContent='Training the next-token model live…';
+  // rebuild grammar pairs
+  const A=[0,1,2],F=[3,4,5],V=[6,7,8],xs=[],ys=[];
+  let s=12345;const rnd=()=>{s=(s*1103515245+12345)&0x7fffffff;return s/0x7fffffff;};
+  for(let i=0;i<1500;i++){const a=A[(rnd()*3)|0],v=V[(rnd()*3)|0],f=F[(rnd()*3)|0];xs.push(a,v);ys.push(v,f);}
+  const xt=tf.tensor2d(xs,[xs.length,1]),yt=tf.tensor1d(ys,'float32');
   const m=tf.sequential();
-  m.add(tf.layers.embedding({inputDim:9,outputDim:2,inputLength:1,embeddingsInitializer:tf.initializers.randomNormal({stddev:0.3,seed:5})}));
-  m.add(tf.layers.flatten());
-  m.add(tf.layers.dense({units:9,activation:'softmax'}));
+  m.add(tf.layers.embedding({inputDim:9,outputDim:2,inputLength:1,embeddingsInitializer:tf.initializers.randomNormal({stddev:0.3})}));
+  m.add(tf.layers.flatten());m.add(tf.layers.dense({units:9,activation:'softmax'}));
   m.compile({optimizer:tf.train.adam(0.05),loss:'sparseCategoricalCrossentropy'});
-  s3={model:m,tensors:[xt,yt]};
-  const EP=120;
-  for(let e=1;e<=EP;e++){
-    const h=await m.fit(xt,yt,{epochs:1,batchSize:128,shuffle:true,verbose:0});
-    if(e%3===0||e===EP){
-      const emb=m.layers[0].getWeights()[0].arraySync(); // 9x2
-      drawEmbeddings(emb);
-      $('s3-epoch').textContent='epoch '+e;
-      $('s3-loss').textContent=h.history.loss[0].toFixed(3);
-      $('s3-purity').textContent=neighborPurity(emb)+' / 9';
-      $('s3-status').innerHTML=`<span class="live">● training</span> · next-token loss ${h.history.loss[0].toFixed(3)}`;
-      await tf.nextFrame();
-    }
+  const sched=new Set([0,2,4,7,10,14,19,25,32,40,50,62,76,92,110,130]);
+  const emb=[],loss=[],pur=[];const cat=P.s13.cat;
+  function purity(E){let ok=0;for(let i=0;i<9;i++){let bi=-1,bd=1e9;for(let j=0;j<9;j++){if(i===j)continue;const dx=E[i][0]-E[j][0],dy=E[i][1]-E[j][1];const dd=dx*dx+dy*dy;if(dd<bd){bd=dd;bi=j;}}ok+=cat[bi]===cat[i];}return ok;}
+  const EP=130;
+  for(let e=0;e<=EP;e++){
+    if(sched.has(e)){const E=m.layers[0].getWeights()[0].arraySync();emb.push(E.map(r=>[+r[0].toFixed(3),+r[1].toFixed(3)]));
+      const h=await m.fit(xt,yt,{epochs:1,batchSize:128,verbose:0});loss.push(+h.history.loss[0].toFixed(3));pur.push(purity(E));
+      $('s3-range').max=emb.length-1;$('s3-range').value=emb.length-1;S3.dataLive={emb,loss,purity:pur};s3Render(emb.length-1);await tf.nextFrame();
+    } else if(e<EP){await m.fit(xt,yt,{epochs:1,batchSize:128,shuffle:true,verbose:0});}
   }
-  const emb=m.layers[0].getWeights()[0].arraySync();
-  $('s3-status').innerHTML=`Done. ${neighborPurity(emb)}/9 words have a same-category nearest neighbor.`;
-  btns.forEach(b=>b.disabled=false);
-}
-function neighborPurity(emb){
-  let ok=0;
-  for(let i=0;i<9;i++){let best=-1,bd=1e9;
-    for(let j=0;j<9;j++){if(i===j)continue;const dx=emb[i][0]-emb[j][0],dy=emb[i][1]-emb[j][1];const d=dx*dx+dy*dy;if(d<bd){bd=d;best=j;}}
-    if(CAT[best]===CAT[i])ok++;
-  }
-  return ok;
-}
-function drawEmbeddings(emb){
-  const cv=$('s3plot'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
-  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
-  let mn=1e9,mx=-1e9;
-  emb.forEach(p=>p.forEach(v=>{mn=Math.min(mn,v);mx=Math.max(mx,v);}));
-  const pad=46, sp=(mx-mn)||1, m2=mn-sp*0.18, M2=mx+sp*0.18;
-  const X=v=>pad+(v-m2)/(M2-m2)*(W-2*pad), Y=v=>H-pad-(v-m2)/(M2-m2)*(H-2*pad);
-  // axes
-  ctx.strokeStyle='#EFE7D7';ctx.lineWidth=1;
-  ctx.strokeRect(.5,.5,W-1,H-1);
-  // points + labels
-  for(let i=0;i<9;i++){
-    const px=X(emb[i][0]),py=Y(emb[i][1]);
-    ctx.beginPath();ctx.arc(px,py,6.5,0,7);ctx.fillStyle=CATCOL[CAT[i]];ctx.globalAlpha=.92;ctx.fill();ctx.globalAlpha=1;
-    ctx.lineWidth=1.5;ctx.strokeStyle='#fff';ctx.stroke();
-    ctx.fillStyle='#1C1814';ctx.font='600 13px Inter, sans-serif';ctx.textAlign='center';
-    ctx.fillText(VOCAB[i],px,py-11);
-  }
-}
-function resetS3(){
-  if(s3){s3.model.dispose();s3.tensors.forEach(t=>t.dispose());s3=null;}
-  const cv=$('s3plot'),ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.strokeStyle='#EFE7D7';ctx.strokeRect(.5,.5,cv.width-1,cv.height-1);
-  ctx.fillStyle='#8A7E6E';ctx.font='14px Inter';ctx.textAlign='center';
-  ctx.fillText('press “Train” to watch the embeddings separate',cv.width/2,cv.height/2);
-  $('s3-epoch').textContent='epoch 0';$('s3-loss').textContent='—';$('s3-purity').textContent='—';
-  $('s3-status').innerHTML='Idle — grammar: <span class="mono">animal → verb → fruit</span>.';
+  xt.dispose();yt.dispose();m.dispose();
 }
 
-/* ============================================================
-   S1-4  memorization vs generalization
-   ============================================================ */
-const TEST4 = makeNoisy(2000, 999);
-let s4=null;
-async function trainS4(){
-  resetS4();
-  const btns=document.querySelectorAll('[data-train="s4"]'); btns.forEach(b=>b.disabled=true);
-  const sizes=[20,200,2000], cv=['s4a','s4b','s4c'], ids=['a','b','c'];
-  const Xte=tf.tensor2d(TEST4.X), results=[]; s4={models:[],tensors:[Xte]};
-  for(let s=0;s<3;s++){
-    const n=sizes[s]; const data=makeNoisy(n, 100+s);
-    const Xtr=tf.tensor2d(data.X), Ytr=tf.tensor2d(data.y,[n,1]);
-    const m=bigClassifier(); s4.models.push(m); s4.tensors.push(Xtr,Ytr);
-    const board=new Board(cv[s],[-3.6,3.6]); board.points(data.X,data.y);
-    const EP=n<=20?260:n<=200?120:60;
-    for(let e=1;e<=EP;e++){
-      await m.fit(Xtr,Ytr,{epochs:1,batchSize:Math.min(64,n),shuffle:true,verbose:0});
-      if(e%Math.ceil(EP/12)===0||e===EP){
-        await board.render(m,data.X,data.y);
-        const tr=await accuracy(m,data.X,data.y), te=await accuracy(m,TEST4.X,TEST4.y);
-        $('s4'+ids[s]+'-tr').textContent=pct(tr); $('s4'+ids[s]+'-te').textContent=pct(te);
-        $('s4'+ids[s]+'-te').className='val '+(te>=0.85?'good':te<0.72?'bad':'');
-        $('s4-status').innerHTML=`<span class="live">● training</span> · n=${n} · epoch ${e}/${EP}`;
-        await tf.nextFrame();
-      }
-    }
-    const tr=await accuracy(m,data.X,data.y), te=await accuracy(m,TEST4.X,TEST4.y);
-    results.push({n,tr,te}); drawGap(results);
-  }
-  const last=results[results.length-1];
-  $('s4-status').innerHTML=`Done. Gap fell from <b>${pct(results[0].tr-results[0].te)}</b> (n=20) to <b>${pct(Math.max(0,last.tr-last.te))}</b> (n=2000).`;
-  btns.forEach(b=>b.disabled=false);
+/* =========================================================================
+   S1-4  generalization
+   ========================================================================= */
+const S4={n:'20',player:null,board:null,live:false,dataLive:{}};
+function s4Cur(){return (S4.live&&S4.dataLive[S4.n])?S4.dataLive[S4.n]:P.s14.sizes[S4.n];}
+function s4Render(idx){
+  const d=s4Cur(); const maxi=d.frames.length-1; idx=clamp(idx,0,maxi);
+  S4.board.clear();S4.board.grid(decodeOr(d.frames[idx]));S4.board.points(d.points);
+  const tr=d.train[idx],te=d.test[idx],gap=Math.max(0,tr-te);
+  $('s4-tr').textContent=pct(tr);$('s4-te').textContent=pct(te);accClass($('s4-te'),te);
+  $('s4-gap').textContent=pct(gap);$('s4-gap').className='v '+(gap>0.15?'bad':gap<0.05?'good':'');
+  $('s4-pill').textContent='n = '+S4.n;
+  const totalEp={'20':400,'200':200,'2000':90}[S4.n];
+  $('s4-ep').textContent='epoch '+epochLabel(idx,maxi,totalEp);
+  $('s4-cap').innerHTML = S4.n==='20'
+    ? `n=20: the surface contorts to fit each point. Train <b>${pct(tr)}</b> but test only <b>${pct(te)}</b>. It memorized the noise.`
+    : S4.n==='2000'
+    ? `n=2000: train <b>${pct(tr)}</b> and test <b>${pct(te)}</b> match, and the gap has collapsed to <b>${pct(gap)}</b>.`
+    : `n=200: the gap is shrinking. Train <b>${pct(tr)}</b>, test <b>${pct(te)}</b>.`;
+  s4Bars(idx);
 }
-function drawGap(res){
-  const cv=$('s4gap'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
-  ctx.fillStyle='#FBF8F1';ctx.fillRect(0,0,W,H);
-  const pad={l:48,r:18,t:18,b:42}, gw=W-pad.l-pad.r, gh=H-pad.t-pad.b;
-  // y grid 0..1
-  ctx.strokeStyle='#E4DBCB';ctx.fillStyle='#8A7E6E';ctx.font='11px Inter';ctx.textAlign='right';ctx.lineWidth=1;
-  for(let t=0;t<=1.0001;t+=0.25){const yy=pad.t+gh*(1-t);ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();ctx.fillText((t*100)+'%',pad.l-8,yy+3);}
-  const groups=res.length, gwEach=gw/3;
-  const sizes=[20,200,2000];
-  for(let i=0;i<3;i++){
-    const cx=pad.l+gwEach*i+gwEach/2;
-    ctx.fillStyle='#4A4239';ctx.font='600 12px Inter';ctx.textAlign='center';
-    ctx.fillText('n = '+sizes[i], cx, H-16);
-    const r=res[i]; if(!r)continue;
-    const bw=30, gap=8;
-    const bars=[['#0F766E',r.tr],['#B91C1C',r.te]];
-    bars.forEach((bb,k)=>{
-      const x=cx-(bw+gap/2)+k*(bw+gap);
-      const bh=gh*bb[1];
-      ctx.fillStyle=bb[0];ctx.fillRect(x,pad.t+gh-bh,bw,bh);
-      ctx.fillStyle='#1C1814';ctx.font='600 11px Inter';ctx.textAlign='center';
-      ctx.fillText((bb[1]*100).toFixed(0)+'%',x+bw/2,pad.t+gh-bh-5);
+function s4Bars(idx){
+  const cv=$('s4bars'),ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
+  const pad={l:44,r:14,t:18,b:40},gw=W-pad.l-pad.r,gh=H-pad.t-pad.b;
+  ctx.strokeStyle='#E3EAF2';ctx.fillStyle='#8A9BB0';ctx.font='11px JetBrains Mono, monospace';ctx.textAlign='right';ctx.lineWidth=1;
+  for(let t=0;t<=1.001;t+=0.25){const yy=pad.t+gh*(1-t);ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();ctx.fillText((t*100)+'%',pad.l-7,yy+3);}
+  const sizes=['20','200','2000'],each=gw/3;
+  sizes.forEach((n,i)=>{
+    const cx=pad.l+each*i+each/2; const d=(S4.live&&S4.dataLive[n])?S4.dataLive[n]:P.s14.sizes[n];
+    const useIdx = (n===S4.n)? idx : d.train.length-1;
+    const tr=d.train[useIdx],te=d.test[useIdx];
+    const bw=34,gap=10;
+    [['#1E40AF',tr],['#0F766E',te]].forEach((bb,k)=>{
+      const x=cx-(bw+gap/2)+k*(bw+gap),bh=gh*bb[1];
+      ctx.fillStyle=bb[0];ctx.globalAlpha=(n===S4.n)?1:.42;ctx.fillRect(x,pad.t+gh-bh,bw,bh);ctx.globalAlpha=1;
+      ctx.fillStyle='#102338';ctx.font='600 10.5px JetBrains Mono';ctx.textAlign='center';
+      ctx.fillText((bb[1]*100).toFixed(0),x+bw/2,pad.t+gh-bh-5);
     });
-    // gap bracket
-    const g=Math.max(0,r.tr-r.te);
-    ctx.fillStyle='#B45309';ctx.font='600 12px Inter';ctx.textAlign='center';
-    ctx.fillText('gap '+(g*100).toFixed(0)+'%', cx, pad.t+gh*(1-r.tr)-10);
+    ctx.fillStyle=(n===S4.n)?'#102338':'#8A9BB0';ctx.font='600 12px IBM Plex Sans';ctx.textAlign='center';
+    ctx.fillText('n='+n,cx,H-15);
+    const g=Math.max(0,tr-te);
+    ctx.fillStyle='#B45309';ctx.font='600 10px JetBrains Mono';
+    ctx.fillText('Δ'+(g*100).toFixed(0),cx,pad.t+gh*(1-tr)-16);
+  });
+}
+function s4Init(){
+  S4.board=new Board('s4plot',P.s14.domain);
+  const range=$('s4-range');
+  S4.player=makePlayer(range,$('s4-play'),s4Render,()=>s4Cur().frames.length-1);
+  $('s4-pick').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    $('s4-pick').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+    S4.n=b.dataset.n;S4.player.stop();range.max=s4Cur().frames.length-1;range.value=range.max;s4Render(+range.value);
+    if(S4.live&&!S4.dataLive[S4.n])s4TrainLive();
+  });
+  $('s4-reset').onclick=()=>{S4.player.stop();range.value=0;s4Render(0);};
+  range.value=range.max=P.s14.sizes['20'].frames.length-1;
+  s4Render(+range.value);
+}
+async function s4TrainLive(){
+  const tf=await ensureTF();S4.player.stop();
+  const n=S4.n;$('s4-cap').textContent=`Training the 64×64 net live on ${n} points…`;
+  const pts=P.s14.sizes[n].points; const X=pts.x.map((x,i)=>[x,pts.y[i]]); const y=pts.c;
+  // need a held-out test set: use precomputed test_points
+  const tp=P.s14.test_points; const Xte=tp.x.map((x,i)=>[x,tp.y[i]]); const yte=tp.c;
+  const epochs={'20':260,'200':140,'2000':70}[n];
+  const sched=[]; for(let i=0;i<11;i++)sched.push(Math.round(Math.pow(i/10,1.4)*epochs));
+  const xs=tf.tensor2d(X),ys=tf.tensor2d(y.map(v=>[v])),xte=tf.tensor2d(Xte);
+  const gp=tf.tensor2d(gridPoints(P.s14.domain));
+  const m=tf.sequential();m.add(tf.layers.dense({inputShape:[2],units:64,activation:'relu'}));m.add(tf.layers.dense({units:64,activation:'relu'}));m.add(tf.layers.dense({units:1,activation:'sigmoid'}));
+  m.compile({optimizer:tf.train.adam(0.01),loss:'binaryCrossentropy'});
+  const frames=[],train=[],test=[];const schedSet=new Set(sched);
+  for(let e=0;e<=epochs;e++){
+    if(schedSet.has(e)){
+      const pr=m.predict(gp);frames.push(Float32Array.from(await pr.data()));pr.dispose();
+      const pa=m.predict(xs);const a1=await pa.data();pa.dispose();let ok=0;for(let i=0;i<y.length;i++)ok+=((a1[i]>0.5?1:0)===y[i]);train.push(ok/y.length);
+      const pb=m.predict(xte);const a2=await pb.data();pb.dispose();let ok2=0;for(let i=0;i<yte.length;i++)ok2+=((a2[i]>0.5?1:0)===yte[i]);test.push(ok2/yte.length);
+      S4.dataLive[n]={frames,train,test,points:pts};$('s4-range').max=frames.length-1;$('s4-range').value=frames.length-1;s4Render(frames.length-1);await tf.nextFrame();
+    }
+    if(e<epochs)await m.fit(xs,ys,{epochs:1,batchSize:Math.min(64,X.length),shuffle:true,verbose:0});
+  }
+  xs.dispose();ys.dispose();xte.dispose();gp.dispose();m.dispose();
+}
+
+/* =========================================================================
+   mode toggle + run all
+   ========================================================================= */
+function setMode(mode){
+  if(mode===MODE)return; MODE=mode;
+  const tg=$('modeToggle');tg.dataset.mode=mode;
+  tg.querySelectorAll('button').forEach(b=>{const on=b.dataset.mode===mode;b.classList.toggle('on',on);b.setAttribute('aria-selected',on);});
+  moveKnob();
+  [S1,S2,S3,S4].forEach(s=>s.live=(mode==='live'));
+  if(mode==='live'){
+    $('modeNote').innerHTML='<b style="color:var(--amber)">Live mode.</b> Training each proof in your browser with TensorFlow.js… first run loads TF.js (~1&nbsp;MB).';
+    trainAllLive();
+  }else{
+    $('modeNote').textContent='Precomputed mode, instant and safe on any laptop. Drag any timeline to scrub training.';
+    S1.dataLive=S2.dataLive=S3.dataLive=null;S4.dataLive={};
+    // reset ranges to precomputed maxima
+    $('s1-range').max=P.s11.models.linear.frames.length-1;
+    $('s2-range').max=P.s12.models.lin1.frames.length-1;
+    $('s3-range').max=P.s13.emb.length-1;
+    $('s4-range').max=P.s14.sizes[S4.n].frames.length-1;
+    s1Render(+$('s1-range').value);s2Render(+$('s2-range').value);s3Render(+$('s3-range').value);s4Render(+$('s4-range').value);
   }
 }
-function resetS4(){
-  if(s4){s4.models.forEach(m=>m.dispose());s4.tensors.forEach(t=>t.dispose());s4=null;}
-  ['s4a','s4b','s4c'].forEach(c=>new Board(c,[-3.6,3.6]));
-  ['a','b','c'].forEach(i=>{$('s4'+i+'-tr').textContent='—';$('s4'+i+'-te').textContent='—';$('s4'+i+'-te').className='val';});
-  const cv=$('s4gap'),ctx=cv.getContext('2d');ctx.fillStyle='#FBF8F1';ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.fillStyle='#8A7E6E';ctx.font='14px Inter';ctx.textAlign='center';
-  ctx.fillText('train vs held-out accuracy will appear here',cv.width/2,cv.height/2);
-  $('s4-status').textContent='Idle — same over-parameterized net (64×64), three dataset sizes.';
+function moveKnob(){
+  const tg=$('modeToggle'),knob=$('knob');const btns=tg.querySelectorAll('button');const on=tg.dataset.mode==='live'?btns[1]:btns[0];
+  knob.style.width=on.offsetWidth+'px';knob.style.transform=`translateX(${on.offsetLeft-4}px)`;
+}
+async function trainAllLive(){
+  const tg=$('modeToggle'); tg.style.pointerEvents='none'; $('runAll').disabled=true;
+  try{ await s1TrainLive(); await s2TrainLive(); await s3TrainLive(); await s4TrainLive();
+    $('modeNote').innerHTML='<b style="color:var(--amber)">Live mode.</b> All four trained in-browser. Drag any timeline to replay, or switch a control to retrain.';
+  }catch(e){ $('modeNote').textContent='Live training error: '+e.message; }
+  tg.style.pointerEvents=''; $('runAll').disabled=false;
+}
+async function runAll(){
+  const btn=$('runAll');btn.disabled=true;
+  for(const [fn,rid] of [[s1Render,'s1-range'],[s2Render,'s2-range'],[s3Render,'s3-range'],[s4Render,'s4-range']]){
+    const range=$(rid);range.value=0;const max=+range.max;
+    await new Promise(res=>{let v=0;const iv=setInterval(()=>{v++;range.value=v;fn(v);if(v>=max){clearInterval(iv);res();}},reduceMotion?1:110);});
+  }
+  btn.disabled=false;
 }
 
-/* ============================================================
-   Wiring
-   ============================================================ */
-const TRAINERS={s1:trainS1,s2:trainS2,s3:trainS3,s4:trainS4};
-const RESETS  ={s1:resetS1,s2:resetS2,s3:resetS3,s4:resetS4};
-document.querySelectorAll('[data-train]').forEach(b=>b.addEventListener('click',()=>TRAINERS[b.dataset.train]()));
-document.querySelectorAll('[data-reset]').forEach(b=>b.addEventListener('click',()=>RESETS[b.dataset.reset]()));
-$('runAll').addEventListener('click',async()=>{
-  const btn=$('runAll'); btn.disabled=true; btn.textContent='Running…';
-  await trainS1(); await trainS2(); await trainS3(); await trainS4();
-  btn.disabled=false; btn.textContent='▶ Run all four experiments';
-});
-
-window.addEventListener('load',async()=>{
-  await tf.ready();
-  resetS1();resetS2();resetS3();resetS4();
+window.addEventListener('load',()=>{
+  s1Init();s2Init();s3Init();s4Init();moveKnob();
+  $('modeToggle').querySelectorAll('button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+  $('runAll').onclick=runAll;
+  window.addEventListener('resize',moveKnob);
 });
 </script>
 </body>
