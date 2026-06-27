@@ -157,9 +157,8 @@ Opening `index.html` directly works too; live mode needs internet for the TF.js 
 
 ## Deploy
 
-See [`DEPLOY.md`](./DEPLOY.md). Deploy the whole folder (it needs `index.html` and `data.js`). Fastest
-path: drag the `webapp` folder onto [Netlify Drop](https://app.netlify.com/drop), then sign in to keep
-the URL.
+Deploy the whole folder (it needs `index.html` and `data.js`). Fastest path: drag the `webapp` folder
+onto [Netlify Drop](https://app.netlify.com/drop), then sign in to keep the URL.
 
 ---
 
@@ -171,8 +170,7 @@ webapp/
 ├── data.js            # precomputed training trajectories (~240 KB)
 ├── generate_data.py   # NumPy generator that produces data.js (reproducibility)
 ├── assets/            # rendered figures used in this README
-├── README.md          # this file
-└── DEPLOY.md          # Netlify deployment steps
+└── README.md          # this file
 ```
 
 Only `index.html` + `data.js` are needed to run or deploy. Regenerate the data with
