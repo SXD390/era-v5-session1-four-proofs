@@ -161,6 +161,18 @@
   .matbox .hl{color:#7FD4EC}.matbox .g{color:#86E0A2}.matbox .dim{color:#6F8198}
   .note{font-size:12.5px;color:var(--ink-faint);margin-top:10px}
 
+  /* embedding tensor table (S1-3) */
+  .tensor{margin-top:4px}
+  .trow{display:grid;grid-template-columns:118px 1fr 1fr;gap:7px;align-items:center;margin-bottom:5px}
+  .trow.thead{color:var(--ink-faint);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;margin-bottom:8px}
+  .trow.thead .th-n{text-align:right;padding-right:10px}
+  .tword{display:flex;align-items:center;gap:8px;color:var(--ink);font-weight:600;font-size:13.5px}
+  .cdot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .tcell{padding:7px 11px;border-radius:8px;border:1px solid var(--line);text-align:right;color:var(--ink);
+    font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums;background:#fff;transition:background .12s}
+  .trow.hl .tword{color:var(--primary)}
+  .trow.hl .tcell{border-color:var(--primary-2)}
+
   footer{margin:54px 0 70px;color:var(--ink-3);font-size:13.5px;text-align:center}
   footer .rule{height:1px;background:var(--line);margin:0 0 24px}
 
@@ -193,7 +205,6 @@
       It runs instantly by default, or flip the switch up top to <b>train it live</b> in your browser.</p>
     <div class="meta">
       <span class="chip">📘 <b>Session 1</b> · Assignment QnA</span>
-      <span class="chip">🎯 <b>500</b> points</span>
       <span class="chip">🟢 <b>Precomputed</b> = instant, runs on any laptop</span>
       <span class="chip">🟠 <b>Live</b> = real TensorFlow.js training</span>
     </div>
@@ -345,6 +356,12 @@
           </div>
         </div>
       </div>
+      <div class="panel" style="margin-top:16px">
+        <h4>Embedding table · the actual numbers <span class="pill" id="s3-tpill">E ∈ ℝ⁹ˣ² · step 0</span></h4>
+        <div id="s3-tensor" class="tensor"></div>
+        <div class="note">Each word <i>is</i> its 2-number row in this matrix (e₀ = x, e₁ = y on the scatter). Watch
+          same-category rows drift toward the same numbers, the clustering written out. Blue = negative, amber = positive.</div>
+      </div>
       <div class="caption" id="s3-cap">At step 0 the words sit at random. Press ▶ to watch three clusters form.</div>
       <div class="verdict"><span>Three tight clusters form from a next-token objective, and nearest neighbors share a category. <b>You supplied no similarity, only co-occurrence.</b> The loss settles near ln 3 ≈ 1.10, the floor, because the next word is one of three.</span></div>
     </div>
@@ -404,7 +421,7 @@
   <footer>
     <div class="rule"></div>
     <p><b>ERA V5 · Session 1 · From Neural Networks to the Transformer.</b><br>
-    Four interactive proofs · precomputed by default, live TensorFlow.js on demand · built on the Axiom Learning OS.</p>
+    Four interactive proofs · precomputed by default, live TensorFlow.js on demand.</p>
   </footer>
 </div>
 
@@ -627,7 +644,8 @@ const S3={player:null,board:null,live:false,emb:null,loss:null,pur:null,hover:-1
 function s3Cur(){return S3.live?S3.dataLive:{emb:P.s13.emb,loss:P.s13.loss,purity:P.s13.purity};}
 function s3Render(idx){
   const d=s3Cur(); const maxi=d.emb.length-1; idx=clamp(idx,0,maxi);
-  drawEmb(d.emb[idx]); $('s3-pill').textContent='step '+idx; $('s3-ep').textContent='step '+idx;
+  drawEmb(d.emb[idx]); s3Tensor(d.emb[idx]); $('s3-pill').textContent='step '+idx; $('s3-ep').textContent='step '+idx;
+  $('s3-tpill').textContent='E ∈ ℝ⁹ˣ² · step '+idx;
   $('s3-loss').textContent=d.loss[idx].toFixed(3); $('s3-pur').textContent=d.purity[idx]+' / 9';
   $('s3-cap').innerHTML = d.purity[idx]>=8
     ? `Three clusters have locked in. <b>${d.purity[idx]}/9</b> words now sit nearest a same-category word, from next-token training alone.`
@@ -651,8 +669,18 @@ function drawEmb(emb){
     ctx.fillText(voc[i],px,py-11);}
   S3._proj={X,Y,emb};
 }
+function s3Tensor(emb){
+  const voc=P.s13.vocab,cat=P.s13.cat,col=['#1E40AF','#B45309','#0F766E'],V=2.4;
+  const cell=v=>{const t=Math.min(1,Math.abs(v)/V);const rgb=v>=0?'180,83,9':'30,64,175';
+    return `<div class="tcell" style="background:rgba(${rgb},${(t*0.5).toFixed(3)})">${v>=0?'+':''}${v.toFixed(2)}</div>`;};
+  let h=`<div class="trow thead"><div>token</div><div class="th-n">e₀</div><div class="th-n">e₁</div></div>`;
+  for(let i=0;i<9;i++){h+=`<div class="trow${i===S3.hover?' hl':''}" data-i="${i}"><div class="tword"><span class="cdot" style="background:${col[cat[i]]}"></span>${voc[i]}</div>${cell(emb[i][0])}${cell(emb[i][1])}</div>`;}
+  $('s3-tensor').innerHTML=h;
+}
 function s3Init(){
   S3.board=new Board('s3plot',[0,1]);
+  $('s3-tensor').addEventListener('mouseover',e=>{const r=e.target.closest('.trow');if(r&&r.dataset.i!==undefined){const i=+r.dataset.i;if(i!==S3.hover){S3.hover=i;s3Render(+$('s3-range').value);}}});
+  $('s3-tensor').addEventListener('mouseleave',()=>{if(S3.hover!==-1){S3.hover=-1;s3Render(+$('s3-range').value);}});
   const range=$('s3-range');
   S3.player=makePlayer(range,$('s3-play'),s3Render,()=>s3Cur().emb.length-1);
   $('s3-reset').onclick=()=>{S3.player.stop();range.value=0;s3Render(0);};

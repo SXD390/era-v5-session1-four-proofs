@@ -5,7 +5,7 @@ Transformer"). Each proof is a tiny neural net you scrub through frame by frame:
 (precomputed), or trained live in your browser with [TensorFlow.js](https://www.tensorflow.org/js)
 at the flip of a toggle.
 
-Built for the Axiom **Learning OS** · ERA V5 · Session 1 Assignment QnA (500 pts).
+Built for ERA V5 · Session 1 Assignment QnA.
 
 ![The four proofs at a glance](assets/overview.png)
 
@@ -81,6 +81,12 @@ Training pairs come from that chain: `(animal → verb)` and `(verb → fruit)`.
 or similarity are given, yet the embeddings settle into three clusters.
 
 ![Embeddings before and after training](assets/s3_embeddings.png)
+
+The app also shows the embedding matrix itself, updating as you scrub. Each word is one 2-number row.
+After training, animals share `e₀ ≈ +1.6`, verbs share `e₀ ≈ −1.5`, and fruits sit near zero: the
+clustering written out as numbers.
+
+![Embedding matrix at step 0 vs trained](assets/s3_tensor.png)
 
 ## S1-4 · Data closes the gap
 
@@ -166,8 +172,7 @@ webapp/
 ├── generate_data.py   # NumPy generator that produces data.js (reproducibility)
 ├── assets/            # rendered figures used in this README
 ├── README.md          # this file
-├── DEPLOY.md          # Netlify deployment steps
-└── push_to_github.sh  # one-shot helper to publish this folder to GitHub
+└── DEPLOY.md          # Netlify deployment steps
 ```
 
 Only `index.html` + `data.js` are needed to run or deploy. Regenerate the data with
@@ -175,4 +180,4 @@ Only `index.html` + `data.js` are needed to run or deploy. Regenerate the data w
 
 ---
 
-*Course: ERA V5 · Session 1 · From Neural Networks to the Transformer · Axiom Learning OS.*
+*Course: ERA V5 · Session 1 · From Neural Networks to the Transformer.*
